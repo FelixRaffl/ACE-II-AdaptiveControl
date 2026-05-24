@@ -1,0 +1,27 @@
+# --- MATLAB / Simulink Generated Files ---
+*.asv
+*.slxc
+*.slxp
+*.slx.r*
+slprj/
+sfprj/
+_coder/
+codertarget_rtw_cache/
+*.mex*
+
+# --- Live Editor / App Designer ---
+# .mlx files are source files, keep them. 
+# But ignore temporary export/autosave files if they appear:
+*.tmp
+
+# --- MATLAB Internal / OS Junk ---
+.DS_Store
+Thumbs.db
+*.log
+matlab.settings
+
+# --- Project-specific ---
+# If you are using MATLAB Projects (.prj), 
+# you usually want to ignore the 'resources' folder
+# but keep the .prj file itself.
+resources/
