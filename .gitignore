@@ -7,7 +7,7 @@ slprj/
 sfprj/
 _coder/
 codertarget_rtw_cache/
-*.mex*
+# *.mex*
 
 # --- Live Editor / App Designer ---
 # .mlx files are source files, keep them. 
