@@ -25,3 +25,7 @@ matlab.settings
 # you usually want to ignore the 'resources' folder
 # but keep the .prj file itself.
 resources/
+
+# controller-design-docs: MATLAB build artifacts
+slprj/
+*.slxc

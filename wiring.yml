@@ -1,0 +1,61 @@
+# wiring.yml - Adaptive Control DC Motor, Prototyp-Verdrahtung (Pin-Referenz)
+# Rendern:  pip install wireviz   (benoetigt Graphviz im PATH)
+#           wireviz wiring.yml     -> wiring.png / wiring.svg / wiring.html
+#
+# Topologie: ESP32 per USB (Power+Serial), 12V Netzteil -> L298N VM, gemeinsame Masse.
+# Encoder-Drahtfarben (W_ENC) sind die ECHTEN Motordraehte des 25GA371.
+# Steuer-/Leistungslitzen (W_CTRL/W_PWR/W_GND/W_MOTOR) sind frei waehlbare Jumperfarben.
+
+connectors:
+  PSU:
+    type: Labornetzteil
+    subtype: 12 V (strombegrenzt)
+    pinlabels: [+12V, GND]
+  ESP32:
+    type: ESP32-WROOM-32 DevKit
+    notes: USB an PC (Power + Serial)
+    pinlabels: [3V3, GND, GND2, GPIO14, GPIO26, GPIO27, GPIO32, GPIO33]
+  L298N:
+    type: L298N H-Bruecke
+    notes: ENA-Jumper entfernt (PWM aktiv); Motor sieht ~8V (Drop ~4V)
+    pinlabels: [VM, GND, ENA, IN1, IN2, OUT1, OUT2]
+  MOTOR:
+    type: Hyuduo 25GA371
+    subtype: Motor + Encoder (11 PPR, x4 = 44 CPR)
+    pinlabels: [M+, M-, EncVCC, EncGND, EncA, EncB]
+
+cables:
+  W_PWR:                       # Netzteil -> L298N (Leistung)
+    colors: [RD, BK]
+    gauge: 0.5 mm2
+  W_GND:                       # gemeinsame Masse L298N -> ESP32
+    colors: [BK]
+  W_CTRL:                      # ESP32 -> L298N (Steuersignale; Jumperfarben frei)
+    colors: [OG, BN, VT]
+  W_MOTOR:                     # L298N -> Motor (Leistung)
+    colors: [RD, WH]
+    gauge: 0.5 mm2
+  W_ENC:                       # Motor-Encoder -> ESP32 (ECHTE Drahtfarben!)
+    colors: [BU, BK, GN, YE]
+
+connections:
+  -                            # 12 V Versorgung
+    - PSU: [+12V, GND]
+    - W_PWR: [1, 2]
+    - L298N: [VM, GND]
+  -                            # gemeinsame Masse
+    - L298N: [GND]
+    - W_GND: [1]
+    - ESP32: [GND]
+  -                            # PWM + Richtung
+    - ESP32: [GPIO14, GPIO26, GPIO27]
+    - W_CTRL: [1, 2, 3]
+    - L298N: [ENA, IN1, IN2]
+  -                            # Motor-Leistung
+    - L298N: [OUT1, OUT2]
+    - W_MOTOR: [1, 2]
+    - MOTOR: [M+, M-]
+  -                            # Encoder: Blau=VCC, Schwarz=GND, Dunkelgruen/Gruen=A, Gelb=B
+    - MOTOR: [EncVCC, EncGND, EncA, EncB]
+    - W_ENC: [1, 2, 3, 4]
+    - ESP32: [3V3, GND2, GPIO32, GPIO33]
