@@ -1,7 +1,8 @@
 # Bill of Materials – Adaptive Control DC Motor Aufbau
 
-**Projekt**: Adaptive Control of a DC Motor (Example 7.6)  
-**Stand**: 2026-07-07  
+**Projekt**: Adaptive Control of a DC Motor (Example 7.6)
+
+**Stand**: 2026-07-10
 
 ---
 
@@ -10,16 +11,16 @@
 | # | Komponente | Produkt | Kompatibilität | ca. Preis | Status |
 |---|---|---|---|---|---|
 | E1 | **DC Getriebemotor mit Encoder** | Hyuduo 25GA371, 12V, mit integriertem Quadratur-Encoder (6 Drähte) | 12V, Encoder 3.3V-kompatibel mit ESP32 | ~14 € | ✅ ausgewählt |
-| E2 | **ESP32 DevKit** | ESP32 DevKit V1 – **Modell noch ausstehend!** | I2C + PWM + Interrupt-Pins vorhanden | 7–10 € | ⏳ offen |
+| E2 | **ESP32 DevKit** | ESP32-WROOM-32 DevKit | PWM (LEDC) + Interrupt-Pins; am Board getestet (Raffl, 2026-07-06) | 7–10 € | ✅ im Einsatz |
 | E3 | **Motortreiber L298N Mini** | DollaTek L298N Mini Dual H-Bridge (B07DK6Q8F9) | 5–35V Motor, 3.3V Logic von ESP32 ausreichend (VIH > 2.3V ✓) | ~5 € | ✅ ausgewählt |
-| E4 | **Step-Down Converter** | APKLVSR DC-DC Buck, 4–40V → 1.25–37V, 3A, mit Display (B0D8SRX3NY) | Für Spannungsregulierung (z.B. 24V → 12V oder 12V → 5V) | ~8 € | ✅ ausgewählt |
+| E4 | **Step-Down Converter** | APKLVSR DC-DC Buck, 4–40V → 1.25–37V, 3A, mit Display (B0D8SRX3NY) | Optional für Standalone-Betrieb — im Prototyp **nicht verbaut** (ESP32 läuft über USB bzw. Power-Backpack) | ~8 € | ✅ vorhanden, nicht verbaut |
 | E5 | **Barrel Jack Buchse** | RUNCCI-YUN 5.5/2.1mm Hohlstecker-Buchse (B0CH7WX85X) | Standard Netzteil-Stecker | ~3 € | ✅ ausgewählt |
-| E6 | **Netzteil** | 12V DC ≥ 2A (oder 24V je nach Aufbau) | Passend zur Step-Down Stufe | 8–12 € | ⏳ noch bestellen |
+| E6 | **Netzteil** | 12V-Labornetzteil (strombegrenzt, Start 0,5–1 A) | 12 V direkt auf L298N VM, gemeinsame Masse | — | ✅ Labornetzteil |
 | E7 | **Jumper Wire Set** | M-F + M-M, 20cm | — | ~3 € | ⏳ noch bestellen |
 
 > ⚠️ **AS5600 Encoder entfällt** — der 25GA371 hat bereits integrierten Quadratur-Encoder (A, B Signale direkt an ESP32 Interrupt-Pins).
 
-> ⚠️ **Motor hat Getriebe** — das Getriebe lässt sich nicht entfernen. Das adaptive Regelungsprinzip bleibt jedoch identisch: RLS schätzt die effektiven Parameter a₀ und b₀ am Ausgang, der Regler passt sich automatisch an.
+> ⚠️ **Getriebe entfernt** — das Getriebe des 25GA371 wurde physisch entfernt; der Motor läuft ohne Getriebe mit ~3000–8000 RPM (nicht 50 RPM laut Produktseite). RLS schätzt die effektiven Parameter a₀ und b₀ am Ausgang, der Regler passt sich automatisch an.
 
 > ⚠️ **L298N Spannungsabfall**: ~4V Verlust über die H-Brücke. Bei 12V Versorgung kommen effektiv ~8V am Motor an. Mit dem Step-Down Converter lässt sich die Eingangsspannung anpassen.
 
@@ -28,14 +29,10 @@
 ## Verdrahtungsschema
 
 ```
-Netzteil (12–24V)
+Labornetzteil 12V (strombegrenzt 0,5–1 A)
     │
-    ├──→ Barrel Jack (E5)
-    │         │
-    │    ┌────┴────────────────┐
-    │    │   Step-Down (E4)   │  → einstellbar z.B. auf 12V oder 5V
-    │    └────────────────────┘
-    │         │
+    ├──→ (optional, nur Standalone-Betrieb: Barrel Jack (E5) → Step-Down (E4) → 5V)
+    │
     ├──→ L298N VM (Motor-Power 12V)
     │    L298N GND
     │    L298N ENA → ESP32 GPIO 14 (PWM)
@@ -128,8 +125,9 @@ GPIO-Belegung folgt Raffls am Board getestetem Modell (2026-07-06).
 
 ## Offene Punkte
 
-- [ ] **ESP32 Modell bestätigen** → D4 und GPIO-Pinbelegung finalisieren
-- [ ] **Netzteil Spannung klären**: 12V oder 24V? → bestimmt Step-Down Konfiguration
-- [ ] **25GA371 Wellendurchmesser prüfen** → Nabenadapter (D2/D3) dimensionieren
-- [ ] **25GA371 Encoder Drahtfarben prüfen** → Verdrahtung zum ESP32
+- [x] **ESP32 Modell bestätigt** — GPIO-Belegung 14/26/27/32/33 (Raffl, am Board getestet 2026-07-06)
+- [x] **Netzteil geklärt** — 12 V Labornetzteil, strombegrenzt (0,5–1 A)
+- [ ] **25GA371 Wellendurchmesser prüfen** → Nabenadapter (D2/D3) dimensionieren (nur falls Schwungscheiben montiert werden)
+- [ ] **25GA371 Encoder Drahtfarben A/B prüfen** → Drehrichtungs-Vorzeichen-Test im Lab (TESTPLAN Stufe 2); BOM sagt A = grün / B = gelb, Diagramme sagen A = gelb / B = grün
+- [ ] **CPR verifizieren** — 1-Umdrehungs-Test (erwartet ≈ 44; Raffls Modell nutzt effektiv 11)
 - [ ] **Plexiglas Lagerbestand** bestätigen (10mm, 12mm, 15mm)

@@ -38,7 +38,7 @@ graph TB
         ENC["Quadratur-Encoder A/B<br/>11 PPR, x4 = 44 CPR"]
     end
 
-    subgraph FLYWHEEL["Schwungscheibe (Plexiglas, Laser-Cut)"]
+    subgraph FLYWHEEL["Schwungscheiben (nicht montiert — Trägheits-Demo nur in Simulation)"]
         FWS["S Ø60mm  J=1.5e-5 kgm²"]
         FWL["L Ø120mm J=3.6e-4 kgm²"]
     end
@@ -89,13 +89,21 @@ Backpack genutzt werden. Im Prototyp-Aufbau ist er **nicht** verbaut.
 
 | Signal | ESP32 GPIO | Beschreibung |
 |--------|-----------|-------------|
-| PWM    | 25        | `ledcWrite()` — LEDC Kanal 0 |
+| PWM    | 14        | LEDC-PWM → L298N ENA |
 | IN1    | 26        | Motorrichtung Bit 1 |
 | IN2    | 27        | Motorrichtung Bit 2 |
-| Enc A  | 18        | Interrupt (RISING) — Motordraht **gelb** |
-| Enc B  | 19        | Interrupt (RISING) — Motordraht **grün** |
+| Enc A  | 32        | Interrupt (×4-Quadratur) — Motordraht **gelb** (siehe Hinweis) |
+| Enc B  | 33        | Interrupt (×4-Quadratur) — Motordraht **grün** (siehe Hinweis) |
 | Enc VCC| 3.3V      | Motordraht **blau** |
 | Enc GND| GND       | Motordraht **schwarz** |
+
+Pins folgen Raffls am Board getestetem Modell (`code_gen_ac2.slx`, 2026-07-06);
+die früheren Draft-Pins 25/18/19 sind obsolet.
+
+> ⚠️ **Offener Lab-Punkt Drahtfarben:** Die A/B-Farbzuordnung ist unbestätigt —
+> `BOM.md` sagt A = grün, B = gelb (Datenblatt-Foto); dieses Diagramm sowie
+> `schaltplan.drawio`/`draw_hardware.py` sagen A = gelb, B = grün. Im Lab per
+> Drehrichtungs-Vorzeichen-Test verifizieren (TESTPLAN Stufe 2), nicht raten.
 
 ## Richtungslogik L298N
 

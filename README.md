@@ -2,7 +2,7 @@
 
 Physical lab demonstration of **adaptive speed control** for a DC motor — Example 7.6, *Advanced Control Engineering II* (MCI Innsbruck). A recursive-least-squares (RLS) estimator identifies the discrete-time motor model online; a pole-placement design continuously re-tunes the controller. The controller runs on an **ESP32** via Simulink External Mode and drives a Hyuduo 25GA371 DC motor through an L298N H-bridge.
 
-The headline demonstration is the RLS estimate adapting online to a **24× inertia jump** from the small flywheel (J = 1.5×10⁻⁵ kgm²) to the large one (J = 3.6×10⁻⁴ kgm²): the estimates re-converge and the closed-loop settling time stays ≈ 250 ms without any manual re-tuning. Because the flywheels cannot be mounted for the submission, the physical test bench runs the bare motor and the flywheel swap is demonstrated in `adaptive_dcmotor_sim.slx` with the S → L → S scenario.
+The headline demonstration is the RLS estimate adapting online to a **24× inertia jump** from the small flywheel (J = 1.5×10⁻⁵ kgm²) to the large one (J = 3.6×10⁻⁴ kgm²): the estimates re-converge and the closed-loop settling time stays near the ≈ 250 ms design target without any manual re-tuning. Because the flywheels cannot be mounted for the submission, the physical test bench runs the bare motor and the flywheel swap is demonstrated in `adaptive_dcmotor_sim.slx` with the S → L → S scenario.
 
 ## Control algorithm
 
@@ -123,7 +123,9 @@ Recommended ESP32 parameter set: `α = 0.98`, `P₀ = 100·I`, `x̂₀ = [−0.5
 
 ### Stage models for the ESP32
 
-Three script-built, validated models are available in `simulink/`: `encoder_test.slx` (stage 2), `adaptive_dcmotor_sim.slx` (the stage-3 controller against a simulated plant in an S → L → S flywheel-swap scenario, covering the inertia demonstration not run on hardware), and `adaptive_dcmotor.slx` (stage 3 on ESP32 I/O in External Mode).
+Four script-built, validated models are available in `simulink/`: `encoder_test.slx` (stage 2), `adaptive_dcmotor_sim.slx` (the stage-3 controller against a simulated plant in an S → L → S flywheel-swap scenario, covering the inertia demonstration not run on hardware), `adaptive_dcmotor.slx` (stage 3 on ESP32 I/O in External Mode), and `controller_block.slx` (the same controller wrapped as a handover block with exactly one input — measured speed in rad/s — and one output — signed PWM command in ±255 — for direct connection in the colleague's model; ω_ref and the monitoring scope live inside the subsystem).
+
+The split between simulation and hardware code is deliberate: `adaptive_dcmotor_sim.slx` is the only model meant to be *run* (simulated plant, no hardware needed); `encoder_test.slx` and `adaptive_dcmotor.slx` contain real ESP32 I/O blocks and only make sense in External Mode (Monitor & Tune) with the board attached; `controller_block.slx` is a copy source, not a runnable loop. The controller subsystem inside all four is identical and comes from the same builder — the simulation validates exactly the code that is deployed to the hardware.
 
 The models implement the decisions from the [design study](#design-study-for-the-esp32-implementation): `α = 0.98`, an RLS excitation gate that pauses the P-update without excitation to prevent covariance windup at idle, a b₀ guard, and saturation at ±255 with the saturated `u` fed back.
 
@@ -219,6 +221,7 @@ AdaptiveControlDC/
 │   ├── encoder_test.slx        # Stage 2: encoder speed measurement
 │   ├── adaptive_dcmotor_sim.slx # Stage-3 controller with simulated plant
 │   ├── adaptive_dcmotor.slx    # Stage 3: ESP32 I/O and External Mode
+│   ├── controller_block.slx    # Handover block: 1-in (ω rad/s) / 1-out (u ±255)
 │   └── README.md               # Handover guide
 ├── img/                        # Figures (hardware diagram, wiring, simulation results)
 ├── BOM.md                      # Bill of materials + wiring

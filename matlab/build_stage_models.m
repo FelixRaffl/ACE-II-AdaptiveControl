@@ -1,10 +1,12 @@
 %% Build the Stage-2/3 Simulink models for the ESP32 handover.
 %
-% Builds three models into ACE_OUT_DIR (default: pwd):
+% Builds four models into ACE_OUT_DIR (default: pwd):
 %   encoder_test.slx         Stage 2 - encoder -> omega + PWM spin-up path
 %   adaptive_dcmotor_sim.slx Stage 3 - full loop with simulated plant,
 %                            S->L->S flywheel-swap scenario (validation)
 %   adaptive_dcmotor.slx     Stage 3 - same controller, ESP32 I/O
+%   controller_block.slx     Handover block (Raffl): the same controller as a
+%                            1-in (omega [rad/s]) / 1-out (u [+-255]) subsystem
 %
 % Controller design as validated in matlab/design_study.m (see README,
 % section "Design study"): alpha = 0.98, b0 guard, saturation +-255 with
@@ -30,6 +32,7 @@ load_system('pwm_test');                      % read-only config donor
 buildEncoderTest(p, outDir);
 buildSimModel(p, outDir);
 buildHardwareModel(p, outDir);
+buildControllerBlock(p, outDir);
 
 close_system('pwm_test', 0);                  % never save the donor
 disp('BUILD_OK');
@@ -413,6 +416,15 @@ function buildHardwareModel(p, outDir)
     add_block('simulink/Sinks/Scope', [mdl '/Adaptation scope'], ...
         'Position', [1100 430 1150 550]);
     configureScope([mdl '/Adaptation scope'], 4, true);
+    % --- bring-up scope: measurement chain + direction pin, for the
+    % forward-only debug (TESTPLAN Stage 3). Lets cases A/B/C be told apart:
+    % raw count N (monotonic?), delta N (single sign?), omega (plausible?),
+    % IN1 (direction actually held forward?).
+    add_block('simulink/Signal Routing/Mux', [mdl '/Bring-up mux'], ...
+        'Inputs', '4', 'Position', [990 590 995 690]);
+    add_block('simulink/Sinks/Scope', [mdl '/Bring-up scope'], ...
+        'Position', [1100 600 1150 680]);
+    configureScope([mdl '/Bring-up scope'], 4, true);
 
     nameLine(add_line(mdl, 'omega_ref/1', 'Adaptive controller/1', 'autorouting', 'on'), 'omega_ref');
     nameLine(add_line(mdl, 'Encoder/1', 'Count to double/1', 'autorouting', 'on'), 'N');
@@ -436,8 +448,19 @@ function buildHardwareModel(p, outDir)
     nameLine(add_line(mdl, 'Adaptive controller/4', 'Adaptation scope/3', 'autorouting', 'on'), 'e');
     nameLine(add_line(mdl, 'Adaptive controller/5', 'Adaptation scope/4', 'autorouting', 'on'), 'traceP');
 
+    % Bring-up scope feed lines stay unnamed (branched signals). IN1 is tapped
+    % off the H-bridge map so the held forward direction is visible on the scope.
+    add_line(mdl, 'Count to double/1', 'Bring-up mux/1', 'autorouting', 'on');
+    add_line(mdl, 'Delta N/1', 'Bring-up mux/2', 'autorouting', 'on');
+    add_line(mdl, 'Counts to rad_s/1', 'Bring-up mux/3', 'autorouting', 'on');
+    add_line(mdl, 'H-bridge map/2', 'Bring-up mux/4', 'autorouting', 'on');
+    add_line(mdl, 'Bring-up mux/1', 'Bring-up scope/1', 'autorouting', 'on');
+
     addNote(mdl, ['Stage 3 - adaptive controller on ESP32 (External Mode). Bare motor, ' ...
-        'no flywheel.' newline 'Pins: PWM 14, IN1/IN2 26/27, Encoder A/B 32/33. T = 80 ms.'], [40 30]);
+        'no flywheel.' newline 'Pins: PWM 14, IN1/IN2 26/27, Encoder A/B 32/33. T = 80 ms.' newline ...
+        'Bring-up (TESTPLAN Stage 3): check N / delta N / omega / IN1 on the Bring-up ' ...
+        'scope first; force forward-only by tuning the Saturation lower limit to 0 for ' ...
+        'the initial unit step.'], [40 30]);
     save_system(mdl, fullfile(outDir, [mdl '.slx']));
     close_system(mdl, 0);
     fprintf('Built %s\n', fullfile(outDir, [mdl '.slx']));
@@ -480,10 +503,16 @@ function buildEncoderTest(p, outDir)
     add_block('simulink/Math Operations/Gain', [mdl '/Counts to rad_s'], ...
         'Gain', sprintf('2*pi/(%s*%s)', num(p.T), num(p.CPR)), ...
         'Position', [390 310 450 360]);
-    add_block('simulink/Sinks/Scope', [mdl '/omega scope'], ...
-        'Position', [490 285 540 335]);
+    % Bring-up scope: raw count N / delta N / omega on stacked axes. The
+    % forward-only test (TESTPLAN Stage 2/2b) needs N monotonic and delta N
+    % single-signed before the loop is ever closed.
+    add_block('simulink/Signal Routing/Mux', [mdl '/Bring-up mux'], ...
+        'Inputs', '3', 'Position', [470 250 475 360]);
+    add_block('simulink/Sinks/Scope', [mdl '/Bring-up scope'], ...
+        'Position', [520 285 570 335]);
+    configureScope([mdl '/Bring-up scope'], 3, true);
     add_block('simulink/Sinks/Display', [mdl '/omega rad_s'], ...
-        'Position', [490 360 590 400]);
+        'Position', [520 360 620 400]);
 
     add_line(mdl, 'duty/1', 'PWM GPIO14/1', 'autorouting', 'on');
     add_line(mdl, 'dir 1/1', 'IN1 GPIO26/1', 'autorouting', 'on');
@@ -494,11 +523,86 @@ function buildEncoderTest(p, outDir)
     add_line(mdl, 'Count to double/1', 'N_prev/1', 'autorouting', 'on');
     add_line(mdl, 'N_prev/1', 'Delta N/2', 'autorouting', 'on');
     add_line(mdl, 'Delta N/1', 'Counts to rad_s/1', 'autorouting', 'on');
-    nameLine(add_line(mdl, 'Counts to rad_s/1', 'omega scope/1', 'autorouting', 'on'), 'omega');
+    % Feed lines to the bring-up mux stay unnamed: branched top-level signals
+    % would otherwise overlap their labels.
+    add_line(mdl, 'Count to double/1', 'Bring-up mux/1', 'autorouting', 'on');
+    add_line(mdl, 'Delta N/1', 'Bring-up mux/2', 'autorouting', 'on');
+    add_line(mdl, 'Counts to rad_s/1', 'Bring-up mux/3', 'autorouting', 'on');
+    add_line(mdl, 'Bring-up mux/1', 'Bring-up scope/1', 'autorouting', 'on');
     add_line(mdl, 'Counts to rad_s/1', 'omega rad_s/1', 'autorouting', 'on');
 
-    addNote(mdl, ['Stage 2 - encoder + PWM check on the bare motor.' newline ...
-        'Read raw counts, calibrate CPR with the 1-revolution test (see TESTPLAN).'], [40 20]);
+    addNote(mdl, ['Stage 2 - encoder + PWM check on the bare motor (forward-only).' newline ...
+        'Bring-up scope stacks raw count N / delta N / omega: with the motor spinning ' ...
+        'forward N must be monotonic and delta N single-signed.' newline ...
+        'Calibrate CPR with the 1-revolution test (see TESTPLAN Stage 2).'], [40 20]);
+    save_system(mdl, fullfile(outDir, [mdl '.slx']));
+    close_system(mdl, 0);
+    fprintf('Built %s\n', fullfile(outDir, [mdl '.slx']));
+end
+
+%% ------------------------- handover block (Raffl): 1-in/1-out wrapper
+function buildControllerBlock(p, outDir)
+    % Handover interface: a controller block with one input (measured speed,
+    % rad/s) and one output (signed PWM command) for integration into a
+    % separate ESP32 model. The wrapper reuses the exact buildControllerSubsystem
+    % used by the validated stage-3 models;
+    % omega_ref lives inside as a tunable Constant, monitoring goes to an
+    % internal 4-axis scope, so the boundary stays exactly 1-in/1-out.
+    mdl = 'controller_block';
+    if bdIsLoaded(mdl), close_system(mdl, 0); end
+    new_system(mdl);
+    applyEsp32Config(mdl, p);
+
+    add_block('simulink/Ports & Subsystems/In1', [mdl '/omega_in'], ...
+        'Position', [60 148 90 162]);
+    wrap = [mdl '/Adaptive speed controller'];
+    add_block('simulink/Ports & Subsystems/Subsystem', wrap, ...
+        'Position', [190 100 440 210]);
+    Simulink.SubSystem.deleteContents(wrap);
+    add_block('simulink/Ports & Subsystems/Out1', [mdl '/u_out'], ...
+        'Position', [540 148 570 162]);
+
+    % --- wrapper contents: omega_ref + the standard controller subsystem
+    add_block('simulink/Ports & Subsystems/In1', [wrap '/omega'], ...
+        'Position', [40 168 70 182]);
+    add_block('simulink/Ports & Subsystems/Out1', [wrap '/u'], ...
+        'Position', [640 103 670 117]);
+    add_block('simulink/Sources/Constant', [wrap '/omega_ref'], ...
+        'Value', '0', 'SampleTime', num(p.T), 'Position', [40 78 110 112]);
+
+    ctrl = [wrap '/Adaptive controller'];
+    add_block('simulink/Ports & Subsystems/Subsystem', ctrl, ...
+        'Position', [220 70 440 230]);
+    Simulink.SubSystem.deleteContents(ctrl);
+    buildControllerSubsystem(ctrl, p);
+
+    add_block('simulink/Signal Routing/Mux', [wrap '/a0b0 mux'], ...
+        'Inputs', '2', 'Position', [520 300 525 350]);
+    add_block('simulink/Sinks/Scope', [wrap '/Adaptation scope'], ...
+        'Position', [640 260 690 380]);
+    configureScope([wrap '/Adaptation scope'], 4, true);
+
+    add_line(wrap, 'omega_ref/1', 'Adaptive controller/1', 'autorouting', 'on');
+    add_line(wrap, 'omega/1', 'Adaptive controller/2', 'autorouting', 'on');
+    add_line(wrap, 'Adaptive controller/1', 'u/1', 'autorouting', 'on');
+    add_line(wrap, 'Adaptive controller/1', 'Adaptation scope/1', 'autorouting', 'on');
+    nameLine(add_line(wrap, 'Adaptive controller/2', 'a0b0 mux/1', 'autorouting', 'on'), 'a0_est');
+    nameLine(add_line(wrap, 'Adaptive controller/3', 'a0b0 mux/2', 'autorouting', 'on'), 'b0_est');
+    add_line(wrap, 'a0b0 mux/1', 'Adaptation scope/2', 'autorouting', 'on');
+    nameLine(add_line(wrap, 'Adaptive controller/4', 'Adaptation scope/3', 'autorouting', 'on'), 'e');
+    nameLine(add_line(wrap, 'Adaptive controller/5', 'Adaptation scope/4', 'autorouting', 'on'), 'traceP');
+
+    nameLine(add_line(mdl, 'omega_in/1', 'Adaptive speed controller/1', 'autorouting', 'on'), 'omega');
+    nameLine(add_line(mdl, 'Adaptive speed controller/1', 'u_out/1', 'autorouting', 'on'), 'u');
+
+    addNote(mdl, ['Handover block - copy the "Adaptive speed controller" subsystem ' ...
+        'into your model.' newline ...
+        'IN:  omega_in - measured speed [rad/s] ' ...
+        '(encoder counts -> delta N -> 2*pi/(T*CPR) gain in front)' newline ...
+        'OUT: u_out - signed PWM command in [-255, 255] ' ...
+        '(|u| -> PWM duty GPIO14, sign(u) -> IN1/IN2; see "H-bridge map" in adaptive_dcmotor.slx)' newline ...
+        'omega_ref = tunable Constant inside the subsystem (External Mode); ' ...
+        'whole loop runs at T = 0.08 s.'], [40 30]);
     save_system(mdl, fullfile(outDir, [mdl '.slx']));
     close_system(mdl, 0);
     fprintf('Built %s\n', fullfile(outDir, [mdl '.slx']));

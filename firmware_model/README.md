@@ -55,8 +55,10 @@ Parameter: `q0 = 0.06`, `q1 = -0.5`, `alpha = 0.98`, `P0 = 100·I`,
 ## External Mode / Scopes
 
 Live mitschreiben/tunen: `ω`, `ω_ref`, `u`, `e`, `a0_est`, `b0_est`.
-`ω_ref` als **tunbaren Constant/Slider**. Demo: Schwungscheibe **S → L** wechseln → `a0,b0`
-adaptieren sich, Einschwingen bleibt ~250 ms.
+`ω_ref` als **tunbaren Constant/Slider**. Für die Abgabe läuft der Prüfstand mit dem
+Motor ohne Schwungscheibe; der Wechsel **S → L** ist optional (nur falls montierbar).
+Die vollständige S→L→S-Demonstration ist in `../simulink/adaptive_dcmotor_sim.slx`
+validiert: `a0,b0` re-adaptieren, Einschwingen ≈ 0.25–0.4 s (Designziel 250 ms).
 
 ## Build-Reihenfolge (inkrementell — nicht alles auf einmal!)
 
@@ -72,6 +74,10 @@ adaptieren sich, Einschwingen bleibt ~250 ms.
 1. **CPR-Diskrepanz:** Raffls Modell nutzt Gain `2π/11`, unsere Annahme ist
    CPR ≈ 44 (11 PPR × 4) → Faktor 4. Per 1-Umdrehungs-Test klären (TESTPLAN Stufe 2),
    nicht raten.
-2. Min-Duty/Deadband gegen Haftreibung evtl. ergänzen (unverändert offen).
+2. **Minimale stabile Drehzahl / Deadband:** Losbrech-Duty und `ω_min` per statischer
+   `duty → ω`-Kennlinie messen (TESTPLAN Stufe 2b). Legt das zulässige `ω_ref`-Fenster fest.
+3. **Forward-only-Bring-up:** Messkette (N/ΔN/ω/IN1) vor dem Schließen des Regelkreises
+   am `Bring-up scope` verifizieren; Systematik + Entscheidungsbaum in
+   `../HARDWARE_BRINGUP_PLAN.md` und TESTPLAN Stufe 3 (Laborbefund 2026-07-11: ω-Spike-Pakete).
 
 Pin-Quelle: Raffls am Board getestetes Modell (2026-07-06).

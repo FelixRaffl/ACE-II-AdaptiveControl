@@ -1,5 +1,13 @@
 # Clean adaptive-control simulation
 
+> **Note (2026-07-10):** This simulation generation has been superseded by the
+> stage models — the authoritative sources are
+> [`build_stage_models.m`](build_stage_models.m),
+> [`validate_stage_models.m`](validate_stage_models.m) and the models in
+> [`../simulink/`](../simulink/). The files below are kept as development
+> history; the sections on the model boundary and the physical limitation
+> (normalized parameters — no 250 ms hardware claim) remain valid.
+
 This folder contains the reproducible simulation that bridges the supplied
 reference model and the later ESP32 implementation.
 

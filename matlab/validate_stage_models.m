@@ -2,8 +2,10 @@
 %
 % 1) adaptive_dcmotor_sim: headless run of the S->L->S scenario with
 %    quantitative asserts mirroring matlab/design_study.m, plus plot export.
-% 2) encoder_test / adaptive_dcmotor: board-config asserts, unresolved-link
-%    check and a compile check (works without the board attached).
+% 2) encoder_test / adaptive_dcmotor / controller_block: board-config
+%    asserts, unresolved-link check and a compile check (works without the
+%    board attached). controller_block additionally asserts the 1-in/1-out
+%    wrapper interface promised to Raffl.
 %
 % Usage:  matlab.exe -wait -nosplash -sd <stage> -batch "validate_stage_models"
 
@@ -124,6 +126,24 @@ close_system(mdl, 0);
 %% ---------- 2) hardware models ----------
 checkHardwareModel('encoder_test', 'model_stage2.png', outDir);
 checkHardwareModel('adaptive_dcmotor', 'model_stage3.png', outDir);
+checkHardwareModel('controller_block', 'model_controller_block.png', outDir);
+
+% Handover-block interface: the wrapper subsystem must stay exactly
+% 1-in (omega, rad/s) / 1-out (u, signed PWM) as promised to Raffl.
+load_system(fullfile(pwd, 'controller_block.slx'));
+wrap = 'controller_block/Adaptive speed controller';
+nIn  = numel(find_system(wrap, 'SearchDepth', 1, 'BlockType', 'Inport'));
+nOut = numel(find_system(wrap, 'SearchDepth', 1, 'BlockType', 'Outport'));
+assert(nIn == 1 && nOut == 1, ...
+    'controller_block: wrapper must be 1-in/1-out, found %d-in/%d-out.', nIn, nOut);
+fprintf('controller_block: wrapper interface OK (1 inport / 1 outport)\n');
+close_system('controller_block', 0);
+
+% Bring-up scopes: the forward-only debug relies on the measurement-chain
+% scopes added in build_stage_models.m. Assert their port counts so a later
+% edit cannot silently drop them.
+assertScopePorts('encoder_test', 'Bring-up scope', 3);
+assertScopePorts('adaptive_dcmotor', 'Bring-up scope', 4);
 
 disp('VALIDATION_OK');
 
@@ -157,6 +177,15 @@ function checkHardwareModel(mdl, pngName, outDir)
     catch e
         fprintf('WARN: diagram export failed for %s: %s\n', mdl, e.message);
     end
+    close_system(mdl, 0);
+end
+
+function assertScopePorts(mdl, scopeName, nPorts)
+    load_system(fullfile(pwd, [mdl '.slx']));
+    n = str2double(get_param([mdl '/' scopeName], 'NumInputPorts'));
+    assert(n == nPorts, '%s: %s must have %d input ports, found %d.', ...
+        mdl, scopeName, nPorts, n);
+    fprintf('%s: %s has %d input ports OK\n', mdl, scopeName, nPorts);
     close_system(mdl, 0);
 end
 

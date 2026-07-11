@@ -21,6 +21,7 @@ Draft-Belegungen sind obsolet.
 | 2 | [`encoder_test.slx`](../simulink/encoder_test.slx) | Encoder → ω (Sensor), fertiges Modell unter `../simulink/` |
 | 3 | [`adaptive_dcmotor.slx`](../simulink/adaptive_dcmotor.slx) | voller Regelkreis (RLS + PolePlace + PI), fertiges Modell unter `../simulink/` |
 | Simulation | [`adaptive_dcmotor_sim.slx`](../simulink/adaptive_dcmotor_sim.slx) | Simulations-Zwilling von Stufe 3: gleicher Regler, simulierte Strecke mit S→L→S-Szenario; zum gefahrlosen Testen ohne Hardware |
+| Übergabe | [`controller_block.slx`](../simulink/controller_block.slx) | Anschlussblock für Raffl: derselbe Regler mit genau 1 Eingang (ω [rad/s]) und 1 Ausgang (u [±255]); ω_ref + Monitoring innen — siehe `simulink/README.md` §8 |
 
 > Tipp: jede Stufe per **Save As** aus der vorigen ableiten → Board-/Solver-Settings
 > bleiben erhalten.
@@ -84,6 +85,38 @@ bleibt bei Count-Verlust eine Zukunftsoption.
 
 ---
 
+## Stufe 2b — Statische Drehzahlkennlinie (`encoder_test.slx`)
+
+Vor dem Schließen des Regelkreises die statische `duty → ω`-Kennlinie des Motors ohne
+Schwungscheibe aufnehmen. Sie liefert die minimale Losbrech-Duty, die minimale stabile
+Drehzahl `ω_min` und eine grobe Streckenverstärkung — und damit das zulässige
+`ω_ref`-Fenster für alle Closed-loop-Tests.
+
+**Test (forward-only, IN1/IN2 fest vorwärts):**
+1. `duty` (Constant im Modell) in Stufen erhöhen, jede Stufe kurz halten.
+2. Pro Stufe `ω` (Display `omega rad_s`) ablesen und protokollieren. Auf dem
+   `Bring-up scope` müssen `Raw count N` monoton und `ΔN` einseitig bleiben.
+
+| duty | ω [rad/s] | Bemerkung |
+|---:|---:|---|
+| 0 |  |  |
+| 20 |  |  |
+| 40 |  |  |
+| 80 |  |  |
+| 160 |  |  |
+| 255 |  |  |
+
+**Auszuwertende Werte (im Labor eintragen, nicht raten):**
+- Losbrech-Duty (kleinste Duty mit `ω > 0`): ____
+- minimale stabile Drehzahl `ω_min`: ____ rad/s
+- Duty-Bereich, ab dem `ω` näherungsweise linear steigt: ____
+
+> Der Sollwert im Closed-loop-Test (Stufe 3) muss **oberhalb `ω_min`** liegen. Ein
+> `ω_ref` unter `ω_min` ist mit dem bloßen Motor stationär nicht fahrbar und erzeugt
+> zwangsläufig einen Start-Stall-Grenzzyklus — das ist kein Reglerfehler.
+
+---
+
 ## Stufe 3 — `adaptive_dcmotor.slx`  (Regelkreis schließen)
 
 > **Design-Entscheidungen aus der Simulationsstudie** (`matlab/design_study.m`, 2026-07-05,
@@ -114,10 +147,29 @@ MATLAB-Function-Blöcke = verbatim:
 - `|u|` → PWM GPIO14; `sign(u)` → IN1/IN2 (u≥0: 26=1,27=0).
 - **saturiertes** u ist u_prev (Anti-Windup-konsistent).
 
-**Test**
-1. Strombegrenzung aktiv. ω_ref klein starten, langsam hoch.
-2. Scopes live: `ω, ω_ref, u, e, a0_est, b0_est`.
-3. *(optional, nur falls Schwungscheiben montierbar)* **Adaptions-Demo:** Schwungscheibe **S → L** → a0,b0 adaptieren, Settling bleibt ~250 ms.
+**Test — Forward-only zuerst, dann bidirektional:**
+
+> **Aktueller Laborbefund (2026-07-11):** Bei `ω_ref ≈ +30 rad/s` erreicht der Motor
+> den Sollwert nicht; `ω` zeigt große positive/negative Spike-Pakete, `u` bzw. der
+> Motor wechselt wiederholt die Richtung. Das ist für den ersten Bring-up nicht normal
+> und deutet auf die Messkette/Skalierung (Encoder-Vorzeichen, A/B, CPR, ΔN) oder einen
+> Haftreibungs-Grenzzyklus hin — **nicht** auf die Modellordnung. Ursache per
+> Forward-only-Test und Entscheidungsbaum eingrenzen, nicht raten. Details:
+> `../HARDWARE_BRINGUP_PLAN.md`.
+
+1. **Messkette prüfen (Regelkreis noch offen bewerten):** Monitor & Tune starten,
+   `ω_ref = 0`. Auf dem `Bring-up scope` müssen `N` monoton, `ΔN` einseitig, `ω`
+   plausibel und `IN1` konstant vorwärts sein. Ist das nicht sauber → Entscheidungsbaum
+   unten, Regelkreis nicht weiter belasten.
+2. **Forward-only Unit-Step:** die Stellgrößen-Saturation im External Mode live auf
+   `LowerLimit = 0` setzen (verhindert Rückwärtslauf; die H-Brücken-Abbildung hält damit
+   IN1=1/IN2=0). Dann `ω_ref` **einmal** auf ca. `30 rad/s` setzen — bzw. auf den
+   kleinsten Wert oberhalb `ω_min` aus Stufe 2b, falls 30 rad/s darunter liegt
+   (dokumentieren). Tracking-, Adaptations- und Bring-up-Scope beobachten.
+3. Läuft der Unit-Step stabil (ω folgt, `u` kippt nicht, `a0_est`/`b0_est`
+   konvergieren): auf `50 rad/s`, dann Saturation-`LowerLimit` zurück auf `-255` und
+   erst danach die Puls-Folge fahren (`0 ↔ 50` oder `30 ↔ 80 rad/s`, Periode 8–16 s).
+4. *(optional, nur falls Schwungscheiben montierbar)* **Adaptions-Demo:** Schwungscheibe **S → L** → a0,b0 adaptieren; erwartet: Settling ≈ 0.25–0.4 s wie in der Simulation (Designziel 250 ms, Hardware noch ungemessen).
 
 Die vollständige S→L→S-Demonstration liegt in `adaptive_dcmotor_sim.slx`
 validiert vor; der Kernablauf am Prüfstand verwendet den Motor ohne Schwungscheibe.
@@ -137,6 +189,18 @@ validiert vor; der Kernablauf am Prüfstand verwendet den Motor ohne Schwungsche
 
 **Akzeptanz:** ω folgt ω_ref ohne bleibende Regelabweichung; Parameter konvergieren;
 nach Massenwechsel re-adaptiert der Regler.
+
+**Entscheidungsbaum bei Fehlbild** (Details in `../HARDWARE_BRINGUP_PLAN.md`):
+
+- **A — `N` nicht monoton** (Forward-only): Encoder-A/B-Verdrahtung, 3.3-V-Versorgung,
+  gemeinsame Masse, Encoder-Block-Konfiguration, mechanischer Sitz prüfen. Regelkreis offen lassen.
+- **B — `N` monoton, aber `ΔN`/`ω` mit Vorzeichenwechseln:** Unit Delay `N_prev`,
+  Subtraktion, Datentyp-Konversion, Reset-Verhalten, Gain-Vorzeichen prüfen. Regelkreis offen lassen.
+- **C — `ω` plausibel, aber `u` kippt das Vorzeichen:** Fehlerdefinition `e = ω_ref − ω`,
+  Saturation, Rückführung des **saturierten** `u` als `u_prev`, b0-Guard, Startwerte prüfen;
+  zusätzlich prüfen, ob `ω_ref` unter `ω_min` (Stufe 2b) liegt → dann Haftreibungs-Grenzzyklus.
+- **D — Unit-Step 0 → 30 rad/s stabil:** auf 50 rad/s, danach Puls-Folge; Messwerte
+  (insb. Einschwingzeit) protokollieren.
 
 ---
 
