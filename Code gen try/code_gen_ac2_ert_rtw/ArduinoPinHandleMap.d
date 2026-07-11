@@ -1,0 +1,3 @@
+ArduinoPinHandleMap.o: \
+ C:/ProgramData/MATLAB/SupportPackages/R2025b/toolbox/target/supportpackages/arduinobase/src/ArduinoPinHandleMap.cpp \
+ C:/Users/Felix/DOKUME~1/GITREP~1/ACE-II~1/CODEGE~1/code_gen_ac2_ert_rtw/rtwtypes.h
