@@ -1,7 +1,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[british]{babel}
-\usepackage[a4paper,left=3cm,right=3cm,top=3cm,bottom=3cm,headheight=14pt]{geometry}
+\usepackage[a4paper,left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm,headheight=14pt]{geometry}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
@@ -14,18 +14,49 @@
 \usepackage[
   hidelinks,
   pdfauthor={Lenard Wild, Felix Raffl},
-  pdftitle={Adaptive Control of a Real DC Motor},
+  pdftitle={Adaptive Control of a DC Motor},
   pdfsubject={Advanced Control Engineering 2}
 ]{hyperref}
 
-\numberwithin{equation}{chapter}
-\numberwithin{figure}{chapter}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.75}
+
+\makeatletter
+\renewcommand{\@maketitle}{%
+  \newpage
+  \null
+  \vspace{-2cm}%
+  \begin{center}%
+    {\LARGE \@title \par}%
+    \vskip 0.5em%
+    {\large
+      \lineskip .5em%
+      \begin{tabular}[t]{c}%
+        \@author
+      \end{tabular}\par}%
+    \vskip 0.25em%
+    {\large \@date}%
+  \end{center}%
+  \par
+  \vskip 0.75em}
+\makeatother
+
+
+\setlength{\abovedisplayskip}{6pt plus 2pt minus 2pt}
+\setlength{\belowdisplayskip}{6pt plus 2pt minus 2pt}
+\setlength{\abovedisplayshortskip}{3pt plus 2pt minus 2pt}
+\setlength{\belowdisplayshortskip}{5pt plus 2pt minus 2pt}
+\setlength{\textfloatsep}{10pt plus 2pt minus 2pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{7. Adaptive Control}
+\fancyhead[L]{Adaptive Control of a DC Motor}
 \fancyhead[R]{\thepage}
-\fancyfoot[R]{Lenard Wild, Felix Raffl 2026}
+\fancyfoot[R]{Lenard Wild, Felix Raffl}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
@@ -35,10 +66,6 @@
 }
 
 \newcommand{\diff}{\mathop{}\!\mathrm{d}}
-
-\newcommand{\examplehead}[2]{%
-  \par\medskip\noindent\textbf{Example #1: #2}\par\smallskip
-}
 
 \newcommand{\examplecaption}[1]{%
   \par\smallskip
@@ -51,5 +78,5 @@
 }
 
 \newenvironment{scripttable}
-  {\begin{table}\small}
+  {\begin{table}[htbp]\small}
   {\end{table}}

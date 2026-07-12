@@ -1,0 +1,99 @@
+\section{Second-order design}
+
+With armature inductance \(L_a\), armature resistance \(R_a\), inertia \(J\),
+viscous friction \(b\), and motor constant \(K_m\), the continuous-time
+second-order transfer function is
+\begin{equation}
+  G(s)=
+  \frac{K_m}
+       {L_aJs^2+\left(L_ab+R_aJ\right)s+\left(R_ab+K_m^2\right)} .
+  \label{eq:second-order-continuous-transfer}
+\end{equation}
+After zero-order-hold discretisation this is written as
+\begin{equation}
+  G(z)=\frac{b_1z+b_0}{z^2+a_1z+a_0}.
+  \label{eq:second-order-discrete-transfer}
+\end{equation}
+The adaptive estimator therefore has four parameters, with regression vector
+\begin{equation}
+  \varphi(k)=
+  \begin{bmatrix}
+    -y(k-1) & -y(k-2) & u(k-1) & u(k-2)
+  \end{bmatrix}.
+  \label{eq:second-order-regressor}
+\end{equation}
+
+Example 7.6 of the reader does not use the free \(c(z)\) of the general
+Diophantine system; it forces \(c(z)=z-1\), i.e. a PI controller. Our
+second-order design does the same thing one order higher. Pure pole placement
+fixes only the poles, not the static gain, and therefore leaves a steady-state
+error; the simulated value was \(7.8\) percent. To remove this error, the
+design forces
+\begin{equation}
+  c(z)=(z-1)(z+c_0),
+  \label{eq:second-order-integrator}
+\end{equation}
+which gives \(T(1)=1\). Equation 7.16 of the reader gives the general design
+equation whose linear system is solved for the controller coefficients at
+every sampling instant.
+
+The decisive point is the sampling time. For
+\[
+  K_m=0.05,\quad
+  J=\SI{0.001}{kg.m^2},\quad
+  b=0.0005,\quad
+  L_a=\SI{2}{mH},\quad
+  R_a=\SI{2}{\ohm},
+\]
+the continuous poles are \(-998.7\,\si{s^{-1}}\) for the electrical mode and
+\(-1.75\,\si{s^{-1}}\) for the mechanical mode. The electrical time constant
+is therefore about \(\SI{1}{ms}\). Table~\ref{tab:second-order-zoh-values}
+shows the exact ZOH discretisation at the hardware sampling time and at a
+sampling time that resolves the electrical pole.
+
+\begin{scripttable}
+  \centering
+  \caption{Exact ZOH parameters of the second-order motor model.}
+  \label{tab:second-order-zoh-values}
+  \begin{tabular}{rrrrrrl}
+    \toprule
+    \(T\) & \(a_1\) & \(a_0\) & \(b_1\) & \(b_0\) & \multicolumn{2}{c}{\(z\)-poles} \\
+    \midrule
+    \(\SI{80}{ms}\) & \(-0.8692\) & \(0.000000\) & \(1.8467\) & \(0.0218\) & \(0.8692\) & \(0\) \\
+    \(\SI{2}{ms}\)  & \(-1.1322\) & \(0.1352\)   & \(0.0284\) & \(0.0148\) & \(0.9965\) & \(0.1357\) \\
+    \bottomrule
+  \end{tabular}
+\end{scripttable}
+
+At \(T=\SI{80}{ms}\), the electrical pole is mapped to \(z=0\) and has fully
+decayed between two samples. Two of the four parameters then no longer
+contribute independent information, the regressor loses rank, and the plant is
+structurally not identifiable. The closed loop can nevertheless still follow
+the reference stably, even though the parameter estimate cannot converge under
+that sampling, because the controller only needs certain combinations of the
+parameters, not their individual values. A stable closed loop is therefore not
+evidence of successful identification. At \(T=\SI{2}{ms}\), the poles are
+\(0.9965\) and \(0.1357\), and all four parameters are identifiable.
+
+The working design uses \(T=\SI{2}{ms}\), with PRBS dither added to the
+manipulated variable. Clipping does not corrupt the estimate because the
+regressor uses the post-saturation command. The estimator is used without
+forgetting, \(\alpha=1\), because without persistent excitation \(\alpha<1\)
+makes \(P\) grow without bound.
+
+The desired closed-loop polynomial is
+\begin{equation}
+  q(z)=z(z-0.1357)(z-0.9608)^2 .
+  \label{eq:second-order-desired-polynomial}
+\end{equation}
+The fast electrical pole is deliberately left in place in
+\eqref{eq:second-order-desired-polynomial} because it is already much faster
+than the desired bandwidth. If instead
+\[
+  q(z)=(z-0.9608)^4
+\]
+is demanded, the design slows the electrical pole by a factor of \(50\). The
+controller must then invert the fast plant dynamics and becomes unstable
+itself, with its pole at \(|z|=2.66\), and behind a saturation limit such a
+controller necessarily diverges. The design rule is therefore to leave modes
+that are much faster than the desired bandwidth where they are.

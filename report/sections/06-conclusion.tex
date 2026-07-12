@@ -1,0 +1,8 @@
+\section{Conclusion}
+
+The first-order self-tuning regulator from the reader runs on the ESP32 rig
+with the encoder scaling fixed by the one-revolution test at \(44\) counts per
+revolution. The same derivation carried to the second-order plant identifies
+all four parameters in simulation at \(T=\SI{2}{ms}\). At the hardware sampling
+time of \(T=\SI{80}{ms}\), the second-order plant is structurally not
+identifiable, which is why the second-order design stays a simulation result.

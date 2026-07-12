@@ -1,0 +1,98 @@
+\section{First-order design}
+
+This mirrors the derivation of Example 7.6 of the reader. The first-order
+armature-to-speed relation is
+\begin{equation}
+  J\dot{\omega}=-b\omega+K_m u .
+  \label{eq:motor-differential-equation}
+\end{equation}
+Its continuous-time transfer function is
+\begin{equation}
+  G(s)=\frac{\omega(s)}{u(s)}
+      =\frac{K_m/J}{s+b/J}.
+  \label{eq:motor-continuous-transfer}
+\end{equation}
+With zero-order hold sampling and \(T=\SI{0.08}{s}\), the discrete transfer
+function is written as
+\begin{equation}
+  G(z)=\frac{b_0}{z+a_0},
+  \label{eq:motor-discrete-transfer}
+\end{equation}
+where
+\begin{equation}
+  a_0=-\exp\!\left(-\frac{bT}{J}\right),
+  \qquad
+  b_0=\frac{K_m}{b}
+      \left(1-\exp\!\left(-\frac{bT}{J}\right)\right).
+  \label{eq:motor-discrete-parameters}
+\end{equation}
+The identified parameter vector is therefore
+\begin{equation}
+  x_e=\begin{bmatrix}a_0 & b_0\end{bmatrix}^{T}.
+  \label{eq:identified-parameter-vector}
+\end{equation}
+
+The discrete plant model in \eqref{eq:motor-discrete-transfer} gives the
+one-step regression
+\begin{equation}
+  y(k)=C(k)x_e(k),
+  \qquad
+  C(k)=\begin{bmatrix}-y(k-1) & u(k-1)\end{bmatrix}.
+  \label{eq:rls-regression}
+\end{equation}
+The recursive least-squares update with forgetting factor \(\alpha\) is
+\begin{align}
+  L(k) &=
+  \frac{P(k-1)C^{T}(k)}
+       {C(k)P(k-1)C^{T}(k)+\alpha},
+  \label{eq:rls-gain}\\
+  x_e(k) &= x_e(k-1)+L(k)\left(y(k)-C(k)x_e(k-1)\right),
+  \label{eq:rls-parameter-update}\\
+  P(k) &= \frac{\left(I-L(k)C(k)\right)P(k-1)}{\alpha}.
+  \label{eq:rls-covariance-update}
+\end{align}
+The initial values are
+\begin{equation}
+  P(0)=100I,
+  \qquad
+  x_e(0)=\begin{bmatrix}-0.5&1.0\end{bmatrix}^{T}.
+  \label{eq:rls-initialisation}
+\end{equation}
+The covariance update is suspended without excitation, which
+prevents covariance windup. The controller-design step uses a guard
+\(|b_0|>10^{-3}\), avoiding division by a nearly singular plant gain.
+
+The desired closed-loop polynomial is chosen as
+\begin{equation}
+  q(z)=z^2-0.5z+0.06=(z-0.3)(z-0.2).
+  \label{eq:desired-polynomial}
+\end{equation}
+For \(T=\SI{0.08}{s}\), these discrete poles correspond to continuous poles
+close to \(-15\,\si{s^{-1}}\) and \(-20\,\si{s^{-1}}\). The target settling
+time is therefore about \(\SI{250}{ms}\). Writing \(q(z)=z^2+q_1z+q_0\), the
+controller parameters are computed from the current plant estimates by
+\begin{equation}
+  d_0=\frac{q_0+a_0}{b_0},
+  \qquad
+  d_1=\frac{q_1+1-a_0}{b_0}.
+  \label{eq:pole-placement-parameters}
+\end{equation}
+The implemented controller is the incremental PI law
+\begin{equation}
+  u(k)=u(k-1)+d_1e(k)+d_0e(k-1),
+  \label{eq:incremental-pi}
+\end{equation}
+where \(e(k)=r(k)-y(k)\). The saturated command, not the unsaturated internal
+value, is fed back as \(u(k-1)\) in \eqref{eq:incremental-pi}; this is the
+anti-windup mechanism used in the implementation.
+
+The transient cannot be shaped by the pole locations alone, because the
+closed-loop transfer function contains the controller zero
+\begin{equation}
+  z_0=-\frac{d_0}{d_1}.
+  \label{eq:controller-zero}
+\end{equation}
+This is the same structural effect described in the reader as a phase error
+caused by the different numerator order. A one-degree-of-freedom controller
+provides no independent numerator design and cannot remove the zero without
+changing the controller structure.

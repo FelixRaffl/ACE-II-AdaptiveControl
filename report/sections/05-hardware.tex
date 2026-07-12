@@ -1,13 +1,18 @@
-\subsection{Hardware realisation}
+\section{Hardware realisation}
 
 The hardware platform is an ESP32-WROOM module connected to an L298N H-bridge.
 The L298N introduces an approximate voltage drop of \(\SI{4}{V}\), so with a
 \(\SI{12}{V}\) supply the motor sees about \(\SI{8}{V}\). The motor is equipped
-with a quadrature encoder. The sampling time is \(T=\SI{0.08}{s}\).
+with a quadrature encoder. The sampled controller uses the period
+\(T=\SI{0.08}{s}\), \(P(0)=100I\),
+\(x_e(0)=\begin{bmatrix}-0.5&1.0\end{bmatrix}^{T}\), forgetting factor
+\(\alpha=0.98\), desired polynomial \(q(z)=z^2-0.5z+0.06\), and a command
+saturated at \(\pm255\).
 
 The controller is implemented by automatic code generation from Simulink using
-the Embedded Real-Time (ERT) target and the ESP32 target support. External Mode
-is used for Monitor and Tune operation during experiments.
+the Embedded Real-Time (ERT) target, the ESP32 target support, and External
+Mode for Monitor and Tune operation. Table~\ref{tab:esp32-pin-assignment}
+gives the pin assignment.
 
 \begin{scripttable}
   \centering
@@ -32,9 +37,7 @@ x4 quadrature edge decoding. The speed conversion
 \[
   \omega = \frac{2\pi \Delta N}{T\,\mathrm{CPR}}
 \]
-is therefore calibrated for \(\mathrm{CPR}=44\), and the hardware speed values
-are reported in physical units. The measured full-duty speed of approximately
-\(\SI{780}{rad/s}\) corresponds to about \(\SI{7450}{rpm}\). This is consistent
-with the gearbox-free 25GA371 speed range of roughly \(\SIrange{3000}{8000}{rpm}\)
-and independently supports the encoder scaling. Hardware settling times are
-not stated here.
+is therefore calibrated for \(\mathrm{CPR}=44\). The measured full-duty speed
+of approximately \(\SI{780}{rad/s}\) corresponds to about \(\SI{7450}{rpm}\),
+consistent with the gearbox-free 25GA371 speed range of roughly
+\(\SIrange{3000}{8000}{rpm}\) and independently supporting the encoder scaling.

@@ -1,22 +1,20 @@
-\documentclass[11pt,a4paper]{report}
+\documentclass[11pt,a4paper]{article}
 
 \input{preamble}
 
 \begin{document}
 
-\setcounter{chapter}{7}
-\setcounter{section}{4}
-\setcounter{equation}{16}
-\setcounter{figure}{1}
+\title{Adaptive Control of a DC Motor}
+\author{Lenard Wild, Felix Raffl}
+\date{}
+\maketitle
 
 \input{sections/01-introduction}
-\input{sections/02-plant-model}
-\input{sections/03-rls}
-\input{sections/04-pole-placement}
-\input{sections/05-simulation}
-\input{sections/06-second-order}
-\input{sections/07-hardware}
-\input{sections/08-conclusion}
+\input{sections/02-first-order}
+\input{sections/03-second-order}
+\input{sections/04-results}
+\input{sections/05-hardware}
+\input{sections/06-conclusion}
 
 \nocite{*}
 \bibliographystyle{ieeetr}

@@ -1,4 +1,4 @@
-\section{Adaptive Control of a Real DC Motor}
+\section{Introduction}
 
 Example 7.6 of the reader cites the experiment by Abram and Fieg, where the
 adaptive controller is implemented on an Arduino Due \cite{ravazzoloMehrle2026,abramFieg}.
@@ -9,14 +9,15 @@ microcontroller; instead, the real-time code is generated automatically from
 the Simulink model.
 
 The structure follows the indirect adaptive-control scheme of Figure 7.1 in
-the reader. The plant parameters are estimated recursively, the controller is
+the reader: the plant parameters are estimated recursively, the controller is
 redesigned from these estimates, and the resulting incremental PI algorithm is
 executed on the ESP32 input/output interface. Figure~\ref{fig:self-tuning-regulator}
-shows the corresponding arrangement for the motor rig.
+shows the arrangement for the motor rig. The first-order controller runs on
+the hardware, while the second-order extension is studied in simulation.
 
 \begin{figure}[htbp]
   \centering
-  \resizebox{\linewidth}{!}{%
+  \resizebox{0.85\linewidth}{!}{%
   \begin{tikzpicture}[
       auto,
       >=Latex,
@@ -71,13 +72,3 @@ shows the corresponding arrangement for the motor rig.
   \caption{Self-tuning regulator used for the ESP32 DC motor rig.}
   \label{fig:self-tuning-regulator}
 \end{figure}
-
-\examplehead{7.7}{Numerical constants for the ESP32 motor rig}
-
-The sampled controller uses the period \(T=\SI{0.08}{s}\). The estimator is
-initialised with \(P(0)=100I\) and \(x_e(0)=\begin{bmatrix}-0.5&1.0\end{bmatrix}^T\).
-The forgetting factor used for the validated run is \(\alpha=0.98\), the
-desired polynomial is \(q(z)=z^2-0.5z+0.06\), and the motor command is
-saturated at \(\pm 255\). On the hardware, the PWM output is GPIO 14, the two
-H-bridge direction inputs are GPIO 26 and GPIO 27, and the quadrature encoder
-signals are read on GPIO 32 and GPIO 33.
