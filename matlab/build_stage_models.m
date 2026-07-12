@@ -1,17 +1,14 @@
 %% Build the Stage-2/3 Simulink models for the ESP32 implementation.
 %
-% Builds four models into ACE_OUT_DIR (default: <repoRoot>/simulink):
+% Builds three models into ACE_OUT_DIR (default: <repoRoot>/simulink):
 %   encoder_test.slx         Stage 2 - encoder -> omega + PWM spin-up path
 %   adaptive_dcmotor_sim.slx Stage 3 - full loop with simulated plant,
 %                            S->L->S flywheel-swap scenario (validation)
 %   adaptive_dcmotor.slx     Stage 3 - same controller, ESP32 I/O
-%   controller_block.slx     Integration block: the same controller as a
-%                            1-in (omega [rad/s]) / 1-out (u [+-255]) subsystem
 %
-% Controller design as validated in matlab/design_study.m (see README,
-% section "Design study"): alpha = 0.98, b0 guard, saturation +-255 with
-% the saturated u fed back, RLS excitation gate against covariance windup.
-% All block parameters are numeric literals so the .slx files are fully
+% Controller design: alpha = 0.98, b0 guard, saturation +-255 with the
+% saturated u fed back, RLS excitation gate against covariance windup. All
+% block parameters are numeric literals so the .slx files are fully
 % self-contained (and literals stay tunable in External Mode).
 %
 % The ESP32 board / XCP External-Mode configuration is copied from
@@ -38,7 +35,6 @@ load_system('pwm_test');                      % read-only config donor
 buildEncoderTest(p, outDir);
 buildSimModel(p, outDir);
 buildHardwareModel(p, outDir);
-buildControllerBlock(p, outDir);
 
 close_system('pwm_test', 0);                  % never save the donor
 disp('BUILD_OK');
@@ -46,7 +42,7 @@ disp('BUILD_OK');
 %% ---------------------------------------------------------------- params
 function p = stageParams()
     p.T      = 0.08;   % sample time [s]
-    p.alpha  = 0.98;   % RLS forgetting factor (design_study.m)
+    p.alpha  = 0.98;   % RLS forgetting factor
     p.q0     = 0.06;   % q(z) = z^2 + q1*z + q0
     p.q1     = -0.5;
     p.b0Min  = 1e-3;   % pole-placement guard threshold
@@ -565,74 +561,6 @@ function buildEncoderTest(p, outDir)
         'Bring-up scope stacks raw count N / delta N / omega: with the motor spinning ' ...
         'forward N must be monotonic and delta N single-signed.' newline ...
         'CPR is measured as 44 counts per motor revolution (11 PPR x4 quadrature).'], [40 20]);
-    save_system(mdl, fullfile(outDir, [mdl '.slx']));
-    close_system(mdl, 0);
-    fprintf('Built %s\n', fullfile(outDir, [mdl '.slx']));
-end
-
-%% ------------------------- integration block: 1-in/1-out wrapper
-function buildControllerBlock(p, outDir)
-    % Integration interface: a controller block with one input (measured speed,
-    % rad/s) and one output (signed PWM command) for integration into a
-    % separate ESP32 model. The wrapper reuses the exact buildControllerSubsystem
-    % used by the validated stage-3 models;
-    % omega_ref lives inside as a tunable Constant, monitoring goes to an
-    % internal 4-axis scope, so the boundary stays exactly 1-in/1-out.
-    mdl = 'controller_block';
-    if bdIsLoaded(mdl), close_system(mdl, 0); end
-    new_system(mdl);
-    applyEsp32Config(mdl, p);
-
-    add_block('simulink/Ports & Subsystems/In1', [mdl '/omega_in'], ...
-        'Position', [60 148 90 162]);
-    wrap = [mdl '/Adaptive speed controller'];
-    add_block('simulink/Ports & Subsystems/Subsystem', wrap, ...
-        'Position', [190 100 440 210]);
-    Simulink.SubSystem.deleteContents(wrap);
-    add_block('simulink/Ports & Subsystems/Out1', [mdl '/u_out'], ...
-        'Position', [540 148 570 162]);
-
-    % --- wrapper contents: omega_ref + the standard controller subsystem
-    add_block('simulink/Ports & Subsystems/In1', [wrap '/omega'], ...
-        'Position', [40 168 70 182]);
-    add_block('simulink/Ports & Subsystems/Out1', [wrap '/u'], ...
-        'Position', [640 103 670 117]);
-    add_block('simulink/Sources/Constant', [wrap '/omega_ref'], ...
-        'Value', '0', 'SampleTime', num(p.T), 'Position', [40 78 110 112]);
-
-    ctrl = [wrap '/Adaptive controller'];
-    add_block('simulink/Ports & Subsystems/Subsystem', ctrl, ...
-        'Position', [220 70 440 230]);
-    Simulink.SubSystem.deleteContents(ctrl);
-    buildControllerSubsystem(ctrl, p);
-
-    add_block('simulink/Signal Routing/Mux', [wrap '/a0b0 mux'], ...
-        'Inputs', '2', 'Position', [520 300 525 350]);
-    add_block('simulink/Sinks/Scope', [wrap '/Adaptation scope'], ...
-        'Position', [640 260 690 380]);
-    configureScope([wrap '/Adaptation scope'], 4, true);
-
-    add_line(wrap, 'omega_ref/1', 'Adaptive controller/1', 'autorouting', 'on');
-    add_line(wrap, 'omega/1', 'Adaptive controller/2', 'autorouting', 'on');
-    add_line(wrap, 'Adaptive controller/1', 'u/1', 'autorouting', 'on');
-    add_line(wrap, 'Adaptive controller/1', 'Adaptation scope/1', 'autorouting', 'on');
-    nameLine(add_line(wrap, 'Adaptive controller/2', 'a0b0 mux/1', 'autorouting', 'on'), 'a0_est');
-    nameLine(add_line(wrap, 'Adaptive controller/3', 'a0b0 mux/2', 'autorouting', 'on'), 'b0_est');
-    add_line(wrap, 'a0b0 mux/1', 'Adaptation scope/2', 'autorouting', 'on');
-    nameLine(add_line(wrap, 'Adaptive controller/4', 'Adaptation scope/3', 'autorouting', 'on'), 'e');
-    nameLine(add_line(wrap, 'Adaptive controller/5', 'Adaptation scope/4', 'autorouting', 'on'), 'traceP');
-
-    nameLine(add_line(mdl, 'omega_in/1', 'Adaptive speed controller/1', 'autorouting', 'on'), 'omega');
-    nameLine(add_line(mdl, 'Adaptive speed controller/1', 'u_out/1', 'autorouting', 'on'), 'u');
-
-    addNote(mdl, ['Integration block - copy the "Adaptive speed controller" subsystem ' ...
-        'into your model.' newline ...
-        'IN:  omega_in - measured speed [rad/s] ' ...
-        '(encoder counts -> delta N -> 2*pi/(T*CPR) gain in front)' newline ...
-        'OUT: u_out - signed PWM command in [-255, 255] ' ...
-        '(|u| -> PWM duty GPIO14, sign(u) -> IN1/IN2; see "H-bridge map" in adaptive_dcmotor.slx)' newline ...
-        'omega_ref = tunable Constant inside the subsystem (External Mode); ' ...
-        'whole loop runs at T = 0.08 s.'], [40 30]);
     save_system(mdl, fullfile(outDir, [mdl '.slx']));
     close_system(mdl, 0);
     fprintf('Built %s\n', fullfile(outDir, [mdl '.slx']));

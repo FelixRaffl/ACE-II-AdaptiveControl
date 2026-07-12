@@ -11,17 +11,15 @@ These models implement the validated Simulink side of the adaptive DC motor cont
 | `encoder_test.slx` | 2 | Encoder-to-speed verification with a PWM spin-up path |
 | `adaptive_dcmotor_sim.slx` | 3 (simulation) | Same controller against a simulated S->L->S inertia-change plant |
 | `adaptive_dcmotor.slx` | 3 (hardware) | Full closed loop on ESP32 I/O for Monitor and Tune |
-| `controller_block.slx` | integration | Same controller as a one-input, one-output subsystem |
 
 | Category | Models | Execution |
 |---|---|---|
 | Simulation | `adaptive_dcmotor_sim.slx` | Normal Simulink run, no hardware required |
 | ESP32 hardware | `encoder_test.slx`, `adaptive_dcmotor.slx` | Monitor and Tune with the board connected |
-| Integration block | `controller_block.slx` | Copy the `Adaptive speed controller` subsystem into another model |
 
-The controller core is the same `Adaptive controller` subsystem in all four models. The simulation therefore validates the controller code used by the hardware model; only the plant boundary changes from simulated dynamics to ESP32 I/O.
+The controller core is the same `Adaptive controller` subsystem in the generated Stage-3 models. The simulation therefore validates the controller code used by the hardware model; only the plant boundary changes from simulated dynamics to ESP32 I/O.
 
-The controller subsystem has two inputs (`reference`, `speed`) and five outputs (`u_sat`, `a0_est`, `b0_est`, `error`, `traceP`). The monitoring outputs feed External Mode scopes and the quantitative validation asserts. `controller_block.slx` wraps the same controller behind a one-input, one-output boundary for integration into a separate ESP32 model.
+The controller subsystem has two inputs (`reference`, `speed`) and five outputs (`u_sat`, `a0_est`, `b0_est`, `error`, `traceP`). The monitoring outputs feed External Mode scopes and the quantitative validation asserts.
 
 ## Prerequisites
 
@@ -68,17 +66,6 @@ For the initial unit step, inspect the measurement chain on the `Bring-up scope`
 
 The physical test bench runs without flywheels for the submission. The complete S->L->S demonstration is validated in `adaptive_dcmotor_sim.slx`: `a0_est` and `b0_est` re-adapt at `alpha = 0.98`, and the critical L->S transition does not create a limit cycle. Hardware settling times are not claimed.
 
-## Workflow: `controller_block.slx`
-
-`controller_block.slx` contains the same validated controller as subsystem `Adaptive speed controller` with exactly one input and one output.
-
-| Boundary | Signal | Meaning |
-|---|---|---|
-| IN | `omega_in` | Measured speed in rad/s, after encoder counts, `DeltaN`, and `2*pi/(T*CPR)` conversion |
-| OUT | `u_out` | Signed PWM command in `[-255, 255]`, followed by `abs(u)` to PWM GPIO14 and `sign(u)` to IN1/IN2 |
-
-Use the block by copying the subsystem into the target model. `omega_ref` is a tunable Constant inside the subsystem. Monitoring (`u`, `a0_est`, `b0_est`, `e`, `traceP`) remains internal, so the external boundary stays one input and one output. The surrounding model must run fixed-step discrete at `T = 0.08 s`, and the input speed must be in rad/s.
-
 ## Tunable Parameters
 
 The parameters are Constants in the `Adaptive controller` subsystem or at top level and are live-tunable in External Mode.
@@ -106,4 +93,3 @@ The parameters are Constants in the `Adaptive controller` subsystem or at top le
 ## References
 
 - [Root README](../README.md): repository-level build, wiring, safety, and staged bring-up path
-- [`firmware_model/README.md`](../firmware_model/README.md): ESP32 I/O and controller specification

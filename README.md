@@ -15,6 +15,8 @@ This repository contains an adaptive speed-control test bench for a DC motor. Th
 
 Warning: the L298N drops about 4 V, so with a 12 V supply the motor sees only about 8 V.
 
+`CAD/` contains the Autodesk Inventor parts and assembly for the motor mount and enclosure.
+
 ## Wiring
 
 | Signal | ESP32 connection | Notes |
@@ -26,7 +28,7 @@ Warning: the L298N drops about 4 V, so with a 12 V supply the motor sees only ab
 | Encoder B | GPIO 33 | Quadrature channel B |
 | Encoder VCC | 3.3 V | Do not power the encoder from 5 V |
 
-Use a common ground between ESP32, L298N, motor supply, and encoder. See [img/wiring.png](img/wiring.png) and [hardware_diagram.md](hardware_diagram.md) for the full wiring diagram.
+Use a common ground between ESP32, L298N, motor supply, and encoder. See [img/wiring.png](img/wiring.png) for the full wiring diagram.
 
 ## Software prerequisites
 

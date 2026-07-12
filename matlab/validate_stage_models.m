@@ -1,11 +1,9 @@
 %% Validate the Stage-2/3 models built by build_stage_models.m.
 %
 % 1) adaptive_dcmotor_sim: headless run of the S->L->S scenario with
-%    quantitative asserts mirroring matlab/design_study.m, plus plot export.
-% 2) encoder_test / adaptive_dcmotor / controller_block: board-config
-%    asserts, broken-link check and a compile check (works without the
-%    board attached). controller_block additionally asserts the 1-in/1-out
-%    wrapper interface used by the integration block.
+%    quantitative asserts plus plot export.
+% 2) encoder_test / adaptive_dcmotor: board-config asserts, broken-link
+%    check and a compile check (works without the board attached).
 %
 % Usage:
 %   cd matlab
@@ -55,7 +53,7 @@ assert(max(trP(idleIdx)) - min(trP(idleIdx)) < 1e-9, ...
 
 % Forward swap S->L: b0 estimate re-converges. The swap falls into a
 % ref = 0 phase, so RLS only learns once the next step edge (t = 36 s)
-% excites the loop; design_study.m measured ~8 s of excited time.
+% excites the loop.
 i1 = find(t >= swapUp & abs(b0 - b0True(J_large)) < 0.1*b0True(J_large), 1);
 assert(~isempty(i1), 'b0 did not re-converge after S->L swap.');
 tReconv1 = t(i1) - swapUp;
@@ -127,28 +125,11 @@ title('Covariance monitor (flat during idle = excitation gate active)');
 
 exportgraphics(fig, fullfile(imageDir, 'simulation_stage3.png'), 'Resolution', 150);
 close(fig);
-try
-    print(['-s' mdl], '-dpng', '-r150', fullfile(imageDir, 'model_stage3_sim.png'));
-catch e
-    fprintf('WARN: diagram export failed: %s\n', e.message);
-end
 close_system(mdl, 0);
 
 %% ---------- 2) hardware models ----------
-checkHardwareModel('encoder_test', 'model_stage2.png', modelDir, imageDir);
-checkHardwareModel('adaptive_dcmotor', 'model_stage3.png', modelDir, imageDir);
-checkHardwareModel('controller_block', 'model_controller_block.png', modelDir, imageDir);
-
-% Integration-block interface: the wrapper subsystem must stay exactly
-% 1-in (omega, rad/s) / 1-out (u, signed PWM).
-load_system(fullfile(modelDir, 'controller_block.slx'));
-wrap = 'controller_block/Adaptive speed controller';
-nIn  = numel(find_system(wrap, 'SearchDepth', 1, 'BlockType', 'Inport'));
-nOut = numel(find_system(wrap, 'SearchDepth', 1, 'BlockType', 'Outport'));
-assert(nIn == 1 && nOut == 1, ...
-    'controller_block: wrapper must be 1-in/1-out, found %d-in/%d-out.', nIn, nOut);
-fprintf('controller_block: wrapper interface OK (1 inport / 1 outport)\n');
-close_system('controller_block', 0);
+checkHardwareModel('encoder_test', modelDir);
+checkHardwareModel('adaptive_dcmotor', modelDir);
 
 % Bring-up scopes: the forward-only debug relies on the measurement-chain
 % scopes added in build_stage_models.m. Assert their port counts so a later
@@ -159,7 +140,7 @@ assertScopePorts('adaptive_dcmotor', 'Bring-up scope', 4, modelDir);
 disp('VALIDATION_OK');
 
 %% ---------- local functions ----------
-function checkHardwareModel(mdl, pngName, modelDir, imageDir)
+function checkHardwareModel(mdl, modelDir)
     load_system(fullfile(modelDir, [mdl '.slx']));
     board = get_param(mdl, 'HardwareBoard');
     stf = get_param(mdl, 'SystemTargetFile');
@@ -184,11 +165,6 @@ function checkHardwareModel(mdl, pngName, modelDir, imageDir)
         fprintf('%s: falling back to load + link check (passed above)\n', mdl);
     end
 
-    try
-        print(['-s' mdl], '-dpng', '-r150', fullfile(imageDir, pngName));
-    catch e
-        fprintf('WARN: diagram export failed for %s: %s\n', mdl, e.message);
-    end
     close_system(mdl, 0);
 end
 
