@@ -2,7 +2,6 @@
 %
 % Produces:
 %   simulation_2nd_order.png
-%   identifiability_T.png
 %
 % Usage:
 %   cd matlab
@@ -20,7 +19,7 @@ else
 end
 if ~exist(imageDir, 'dir'), mkdir(imageDir); end
 
-p = secondOrderParams();
+p = second_order_params();
 mdl = 'adaptive_dcmotor_2nd_sim';
 modelFile = fullfile(modelDir, [mdl '.slx']);
 
@@ -92,70 +91,9 @@ title(errAx, 'Normalized parameter estimation error');
 exportgraphics(fig, fullfile(imageDir, 'simulation_2nd_order.png'), 'Resolution', 150);
 close(fig);
 
-exportIdentifiabilityPlot(p, imageDir);
 disp('PLOTS_OK');
 
 %% ---------- local functions ----------
-function p = secondOrderParams()
-    p.Km = 0.05;
-    p.J  = 0.001;
-    p.b  = 0.0005;
-    p.La = 0.002;
-    p.Ra = 2.0;
-    p.T  = 0.002;
-    p.uMax = 12;
-
-    Gd = c2d(tf(p.Km, [p.La*p.J, p.La*p.b + p.Ra*p.J, p.Ra*p.b + p.Km^2]), ...
-        p.T, 'zoh');
-    [numd, dend] = tfdata(Gd, 'v');
-    numd = numd / dend(1);
-    dend = dend / dend(1);
-    p.a1 = dend(end-1);
-    p.a0 = dend(end);
-    p.b1 = numd(end-1);
-    p.b0 = numd(end);
-end
-
-function exportIdentifiabilityPlot(p, outDir)
-    Ts = logspace(log10(5e-4), log10(0.12), 240);
-    smallPole = zeros(size(Ts));
-    for k = 1:numel(Ts)
-        Gd = c2d(tf(p.Km, [p.La*p.J, p.La*p.b + p.Ra*p.J, p.Ra*p.b + p.Km^2]), ...
-            Ts(k), 'zoh');
-        [~, dend] = tfdata(Gd, 'v');
-        zp = roots(dend);
-        smallPole(k) = min(abs(zp));
-    end
-
-    p002 = smallerPoleAt(p, 0.002);
-    p080 = smallerPoleAt(p, 0.080);
-
-    fig = figure('Visible', 'off', 'Position', [0 0 1050 700]);
-    semilogx(Ts, smallPole, 'k-', 'LineWidth', 1.2); hold on; grid on;
-    plot(0.002, p002, 'ko', 'MarkerFaceColor', 'k');
-    plot(0.080, p080, 'ks', 'MarkerFaceColor', 'w');
-    xline(0.002, 'k--', 'T = 0.002 s');
-    xline(0.080, 'k--', 'T = 0.080 s');
-    text(0.002, p002, sprintf('  |z_{fast}| = %.4g', p002), ...
-        'VerticalAlignment', 'bottom');
-    text(0.080, max(p080, 1e-12), '  not identifiable at 80 ms', ...
-        'VerticalAlignment', 'bottom');
-    xlabel('sample time T [s]');
-    ylabel('smaller discrete pole magnitude');
-    title('Second-order model identifiability versus sample time');
-    ylim([0 1]);
-    exportgraphics(fig, fullfile(outDir, 'identifiability_T.png'), 'Resolution', 150);
-    close(fig);
-end
-
-function z = smallerPoleAt(p, T)
-    Gd = c2d(tf(p.Km, [p.La*p.J, p.La*p.b + p.Ra*p.J, p.Ra*p.b + p.Km^2]), ...
-        T, 'zoh');
-    [~, dend] = tfdata(Gd, 'v');
-    zp = roots(dend);
-    z = min(abs(zp));
-end
-
 function [t, x] = getSignal(ds, name)
     element = ds.getElement(name);
     t = element.Values.Time(:);

@@ -13,7 +13,7 @@ repoRoot = fileparts(scriptDir);
 modelDir = getenv('ACE_OUT_DIR');
 if isempty(modelDir), modelDir = fullfile(repoRoot, 'simulink'); end
 
-p = secondOrderParams();
+p = second_order_params();
 mdl = 'adaptive_dcmotor_2nd_sim';
 modelFile = fullfile(modelDir, [mdl '.slx']);
 
@@ -101,34 +101,6 @@ close_system(mdl, 0);
 disp('VALIDATION_OK');
 
 %% ---------- local functions ----------
-function p = secondOrderParams()
-    p.Km = 0.05;
-    p.J  = 0.001;
-    p.b  = 0.0005;
-    p.La = 0.002;
-    p.Ra = 2.0;
-    p.T  = 0.002;
-    p.uMax = 12;
-    p.tEnd = 8;
-    p.tPhase1 = 4;
-
-    r = exp(-p.T / 0.05);
-    p.q3 = -4 * r;
-    p.q2 =  6 * r^2;
-    p.q1 = -4 * r^3;
-    p.q0 =  r^4;
-
-    Gd = c2d(tf(p.Km, [p.La*p.J, p.La*p.b + p.Ra*p.J, p.Ra*p.b + p.Km^2]), ...
-        p.T, 'zoh');
-    [numd, dend] = tfdata(Gd, 'v');
-    numd = numd / dend(1);
-    dend = dend / dend(1);
-    p.a1 = dend(end-1);
-    p.a0 = dend(end);
-    p.b1 = numd(end-1);
-    p.b0 = numd(end);
-end
-
 function gain = closedLoopT1(a1, a0, b1, b0, q0, q1, q2, q3)
     M = [1.0,     b1, 0.0, 0.0;
          a1-1.0,  b0, b1,  0.0;
