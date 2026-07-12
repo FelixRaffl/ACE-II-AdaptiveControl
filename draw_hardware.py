@@ -1,10 +1,10 @@
 """
-Hardware block diagram - Adaptive Control DC Motor (Prototyp-Topologie)
+Hardware block diagram - Adaptive Control DC Motor (prototype topology)
 Run:    python draw_hardware.py
 Output: img/hardware.png
 
-Topologie: ESP32 per USB (Power + Serial), 12V Netzteil -> L298N VM, gemeinsame Masse.
-Drahtfarben Motor/Encoder: Rot=M+, Weiss=M-, Blau=EncVCC, Schwarz=EncGND, Gelb=A, Gruen=B.
+Topology: ESP32 via USB (power + serial), 12 V bench supply -> L298N VM, common ground.
+Known motor and encoder leads: red=M+, white=M-, blue=EncVCC, black=EncGND.
 """
 
 import os
@@ -89,12 +89,12 @@ def label_box(x, y, txt, color, fs=9):
 draw_block(*PC,    [("PC / Laptop", True), ("Simulink External Mode", False)], C_SLATE, fs=10)
 draw_block(*ESP,   [("ESP32-WROOM-32", True), ("LEDC PWM", False),
                     ("Encoder-Interrupts", False)],                            C_ESP,  fs=10)
-draw_block(*PSU,   [("Labornetzteil", True), ("12V (strombegrenzt)", False)],  C_ORANGE)
-draw_block(*L298,  [("L298N", True), ("H-Bruecke", False)],                    C_GREEN)
+draw_block(*PSU,   [("Bench supply", True), ("12 V current limit", False)],     C_ORANGE)
+draw_block(*L298,  [("L298N", True), ("H-bridge", False)],                     C_GREEN)
 draw_block(*MOTOR, [("DC Motor", True), ("Hyuduo 25GA371", False),
                     ("+ Encoder", False)],                                     C_PURPLE, fs=10)
-draw_block(*FWS,   [("Schwung S", True), ("O 60 mm", False)],                  C_TEAL,  fs=9)
-draw_block(*FWL,   [("Schwung L", True), ("O 120 mm", False)],                 C_DTEAL, fs=9)
+draw_block(*FWS,   [("Flywheel S", True), ("dia. 60 mm", False)],              C_TEAL,  fs=9)
+draw_block(*FWL,   [("Flywheel L", True), ("dia. 120 mm", False)],             C_DTEAL, fs=9)
 
 # -- USB: PC -> ESP32 (top row) ---------------------------------------------
 draw_arrow(PC[0]+PC[2]/2, PC[1], ESP[0]-ESP[2]/2, ESP[1],
@@ -104,9 +104,9 @@ draw_arrow(PC[0]+PC[2]/2, PC[1], ESP[0]-ESP[2]/2, ESP[1],
 draw_arrow(PSU[0]+PSU[2]/2, PSU[1], L298[0]-L298[2]/2, L298[1],
            "12V", C_ORANGE)
 
-# -- Motor drive: L298N -> Motor (~8V, rot/weiss) ---------------------------
+# -- Motor drive: L298N -> Motor (~8 V, red/white) --------------------------
 draw_arrow(L298[0]+L298[2]/2, L298[1], MOTOR[0]-MOTOR[2]/2, MOTOR[1],
-           "~8V  (rot/weiss)", C_GREEN)
+           "~8 V  (red/white)", C_GREEN)
 
 # -- Control: ESP32 -> L298N (ENA/IN1/IN2) ----------------------------------
 ax.annotate("", xy=(L298[0], L298[1]+L298[3]/2),
@@ -116,10 +116,10 @@ ax.annotate("", xy=(L298[0], L298[1]+L298[3]/2),
                             connectionstyle="angle,angleA=0,angleB=90,rad=10"),
             zorder=2)
 label_box(8.6, 5.9,
-          "GPIO14 -> ENA  (PWM)\nGPIO26/27 -> IN1/IN2  (Richtung)",
+          "GPIO14 -> ENA  (PWM)\nGPIO26/27 -> IN1/IN2  (direction)",
           C_BLUE)
 
-# -- Encoder: Motor -> ESP32 (gelb/gruen/blau/schwarz) ----------------------
+# -- Encoder: Motor -> ESP32 ------------------------------------------------
 ax.annotate("", xy=(ESP[0]+0.4, ESP[1]-ESP[3]/2),
             xytext=(MOTOR[0]+MOTOR[2]/2, MOTOR[1]+MOTOR[3]/2-0.3),
             arrowprops=dict(arrowstyle="-|>", color=C_PURPLE, lw=2.4,
@@ -127,12 +127,12 @@ ax.annotate("", xy=(ESP[0]+0.4, ESP[1]-ESP[3]/2),
                             connectionstyle="angle,angleA=90,angleB=0,rad=10"),
             zorder=2)
 label_box(12.0, 6.2,
-          "GPIO32 <- A (gelb)\nGPIO33 <- B (gruen)\n3.3V (blau) / GND (schwarz)",
+          "GPIO32 <- Encoder A\nGPIO33 <- Encoder B\n3.3 V (blue) / GND (black)",
           C_PURPLE)
 
 # -- Mechanical shaft: Motor -> Flywheels -----------------------------------
 draw_arrow(MOTOR[0]+MOTOR[2]/2, MOTOR[1]+0.25, FWS[0]-FWS[2]/2, FWS[1],
-           "Welle", C_GRAY, lw=2.0, offset=(0.4, 0.12), fs=8.5)
+           "Shaft", C_GRAY, lw=2.0, offset=(0.4, 0.12), fs=8.5)
 draw_arrow(MOTOR[0]+MOTOR[2]/2, MOTOR[1]-0.25, FWL[0]-FWL[2]/2, FWL[1]-0.1,
            "", C_GRAY, lw=2.0)
 
@@ -142,7 +142,7 @@ for bx in (PSU, L298):
     ax.plot([bx[0], bx[0]], [bx[1]-bx[3]/2, gnd_y], color=C_GRAY, lw=1.5, ls="--", zorder=2)
 ax.plot([PSU[0], ESP[0]], [gnd_y, gnd_y], color=C_GRAY, lw=1.5, ls="--", zorder=2)
 ax.plot([ESP[0], ESP[0]], [gnd_y, ESP[1]-ESP[3]/2], color=C_GRAY, lw=1.5, ls="--", zorder=2)
-ax.text((PSU[0]+L298[0])/2, gnd_y-0.22, "GND (gemeinsame Masse)",
+ax.text((PSU[0]+L298[0])/2, gnd_y-0.22, "GND (common ground)",
         ha="center", va="top", fontsize=8.5, color=C_GRAY)
 
 # -- Section backgrounds ----------------------------------------------------
@@ -157,22 +157,22 @@ def section_bg(x0, y0, x1, y1, label, color):
         ax.text((x0+x1)/2, y1+0.13, label, ha="center", va="bottom",
                 fontsize=9, color=color, style="italic")
 
-section_bg(0.5, 2.6, 11.2, 4.9, "Antriebs-/Leistungspfad", C_GREEN)
-section_bg(11.4, 3.7, 16.0, 5.3, "Schwungscheiben (Plexiglas)", C_TEAL)
+section_bg(0.5, 2.6, 11.2, 4.9, "Drive and power path", C_GREEN)
+section_bg(11.4, 3.7, 16.0, 5.3, "Flywheels (acrylic)", C_TEAL)
 
 # -- Title ------------------------------------------------------------------
-ax.text(9, 9.5, "Hardware-Schaltplan - Adaptive Control of a DC Motor",
+ax.text(9, 9.5, "Hardware Schematic - Adaptive Control of a DC Motor",
         ha="center", va="center", fontsize=15, fontweight="bold", color=C_MCI)
-ax.text(9, 9.1, "ESP32 (USB)  |  L298N H-Bruecke  |  Hyuduo 25GA371  |  12V Labornetzteil",
+ax.text(9, 9.1, "ESP32 (USB)  |  L298N H-bridge  |  Hyuduo 25GA371  |  12 V bench supply",
         ha="center", va="center", fontsize=10, color=C_GRAY)
 
 # -- Legend -----------------------------------------------------------------
 legend_items = [
     mpatches.Patch(color=C_SLATE,  label="USB (Power + Serial)"),
-    mpatches.Patch(color=C_ORANGE, label="Versorgung 12V"),
-    mpatches.Patch(color=C_GREEN,  label="Motoransteuerung"),
-    mpatches.Patch(color=C_BLUE,   label="Steuersignale (ESP32)"),
-    mpatches.Patch(color=C_PURPLE, label="Encoder-Feedback"),
+    mpatches.Patch(color=C_ORANGE, label="12 V supply"),
+    mpatches.Patch(color=C_GREEN,  label="Motor drive"),
+    mpatches.Patch(color=C_BLUE,   label="Control signals (ESP32)"),
+    mpatches.Patch(color=C_PURPLE, label="Encoder feedback"),
 ]
 ax.legend(handles=legend_items, loc="lower right", fontsize=9,
           framealpha=0.95, edgecolor="#cccccc", bbox_to_anchor=(0.99, 0.01))

@@ -1,13 +1,13 @@
 function [a0_est, b0_est, traceP] = rls_estimator(y_curr, y_prev, u_prev, alpha)
-% RLS-Schaetzer fuer G(z) = b0 / (z + a0)  ->  Parameter [a0; b0]
-% Basis: Referenzmodell (ACE-II-AdaptiveControl / First Order Model).
-% Delta zur Referenz (validiert in matlab/design_study.m, s. README "Design study"):
-%   - alpha ist Eingang (Empfehlung 0.98 statt fest 1.0): noetig fuer Re-Adaption
-%     nach Schwungrad-Wechsel; mit alpha = 1.0 endet L->S im Grenzzyklus.
-%   - Anregungs-Gate: Update nur wenn C*C' > 1e-6, sonst P und xe halten ->
-%     kein Covariance-Windup im Leerlauf (omega_ref = 0).
-%   - P-Symmetrisierung gegen numerische Drift.
-%   - traceP als Ausgang (Windup-Monitor fuer den Adaptions-Scope).
+% RLS estimator for G(z) = b0 / (z + a0) -> parameters [a0; b0]
+% Delta from the reference model, validated in matlab/design_study.m:
+%   - alpha is an input (recommended 0.98 instead of fixed 1.0), enabling
+%     re-adaptation after the flywheel change; alpha = 1.0 ends L->S in a
+%     limit cycle.
+%   - Excitation gate: update only when C*C' > 1e-6; otherwise hold P and xe
+%     to avoid covariance windup while omega_ref = 0.
+%   - P symmetrisation against numerical drift.
+%   - traceP output for the adaptation scope windup monitor.
 % MATLAB-Function-Block, Sample-Time T = 0.08 s.
     persistent P xe
     if isempty(P)

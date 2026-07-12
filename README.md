@@ -38,12 +38,14 @@ Use a common ground between ESP32, L298N, motor supply, and encoder. See [img/wi
 
 ## Build the models
 
-The build scripts write models to `ACE_OUT_DIR`. If `ACE_OUT_DIR` is not set, they use the current MATLAB working directory. Set it when you want generated `.slx` files and logs to land in a separate staging directory.
+By default, the build scripts write generated Simulink models to `simulink/`
+and exported figures to `img/`, independent of the current MATLAB working
+directory. `ACE_OUT_DIR` is optional; set it only when you want generated
+models and figures to land in a separate output directory.
 
 From MATLAB:
 
 ```matlab
-setenv("ACE_OUT_DIR", "C:\path\to\ace_build")
 cd("C:\path\to\ACE-II-AdaptiveControl\matlab")
 
 build_stage_models
@@ -59,6 +61,12 @@ validate_second_order
 % expected: VALIDATION_OK
 ```
 
+Optional output override, set before running the scripts:
+
+```matlab
+setenv("ACE_OUT_DIR", "C:\path\to\ace_build")
+```
+
 From a shell, run the same sequence headlessly from the `matlab/` directory:
 
 ```bash
@@ -68,6 +76,14 @@ matlab -batch "validate_stage_models"    # expected: VALIDATION_OK
 matlab -batch "build_second_order_model" # expected: BUILD_OK
 matlab -batch "validate_second_order"    # expected: VALIDATION_OK
 ```
+
+## Safety checklist before power-up
+
+- Bench supply current limit active, start at 0.5 A
+- Common ground between ESP32, L298N, motor supply and encoder
+- Encoder powered from **3.3 V only**; the ESP32 GPIOs are not 5 V tolerant
+- ENA jumper removed from the L298N
+- Motor mechanically secured before applying power
 
 ## Bring-up in stages
 
@@ -81,9 +97,9 @@ What must work: changing the PWM command must make the motor rotate, and changin
 
 Run `encoder_test.slx` in External Mode with Monitor and Tune. Set the PWM constant to `0` before starting this stage, then check that the encoder count changes when the shaft is turned by hand.
 
-Calibrate the encoder before using any speed values: rotate the motor shaft exactly one revolution by hand, read the counter difference, and use that value as counts per revolution. Enter it in `stageParams()` as `p.CPR`, rebuild the stage models, and deploy again.
+Verify the encoder scaling before using speed values: rotate the motor shaft exactly one revolution by hand. The counter difference must be 44 counts, matching the measured 11 PPR encoder with x4 quadrature decoding.
 
-What must work: with PWM at zero, the count must change monotonically when the shaft is turned and must return the measured counts-per-revolution value for one exact revolution. Without this calibration, every speed value is wrong by an unknown scale factor.
+What must work: with PWM at zero, the count must change monotonically when the shaft is turned and must return 44 counts for one exact revolution.
 
 ### Stage 3: `adaptive_dcmotor.slx`
 
@@ -101,8 +117,6 @@ What must work: the measured speed must follow the reference, the estimates `a0`
 These models are for simulation and validation without the ESP32 hardware.
 
 ## Known limitations
-
-The encoder CPR has not been calibrated on the final hardware, so all reported speeds remain subject to an unknown scale factor until the one-revolution test is done.
 
 The controller cannot actively brake the motor. When the command is reduced, the motor coasts down instead of being driven with regenerative or dynamic braking.
 

@@ -1,83 +1,62 @@
-# ESP32 Adaptive Control Model — Spezifikation
+# ESP32 Adaptive Control Model Specification
 
-ESP32-Version des adaptiven DC-Motor-Reglers. **Validierter ESP32-Stand — Delta zur
-Referenz in den Datei-Headern dokumentiert.** Nur die simulierte Strecke wird durch
-**echte I/O** ersetzt. Läuft über **Simulink External Mode** (Monitor & Tune).
+This directory documents the ESP32 version of the adaptive DC motor controller. The simulated plant is replaced by real ESP32 I/O, while the validated controller structure remains unchanged. The hardware models run through Simulink External Mode with Monitor and Tune.
 
-## Regler-Bausteine (validierter ESP32-Stand — Delta zur Referenz in den Datei-Headern dokumentiert)
+## Controller Blocks
 
-| Block | Datei | Funktion |
+| Block | File | Function |
 |---|---|---|
-| RLS-Schätzer | [`rls_estimator.m`](rls_estimator.m) | schätzt `[a0; b0]` online |
-| Pol-Platzierung | [`pole_placement_controller.m`](pole_placement_controller.m) | `d0, d1` aus `a0,b0,q0,q1` |
-| PI-Regler | [`PI_C.m`](PI_C.m) | `u = u_prev + d1·e + d0·e_prev` |
+| RLS estimator | [`rls_estimator.m`](rls_estimator.m) | Estimates `[a0; b0]` online |
+| Pole placement | [`pole_placement_controller.m`](pole_placement_controller.m) | Computes `d0, d1` from `a0, b0, q0, q1` |
+| Incremental PI | [`PI_C.m`](PI_C.m) | Computes `u = u_prev + d1*e + d0*e_prev` |
 
-Parameter: `q0 = 0.06`, `q1 = -0.5`, `alpha = 0.98`, `P0 = 100·I`,
-`x̂0 = [-0.5; 1.0]`, `b0Min = 1e-3`, **Sample-Time T = 0.08 s**
-(gesamter Regelkreis).
+Parameters: `q0 = 0.06`, `q1 = -0.5`, `alpha = 0.98`, `P0 = 100*I`, `xhat0 = [-0.5; 1.0]`, `b0Min = 1e-3`, and sample time `T = 0.08 s` for the full control loop.
 
-## Signalfluss (T = 0.08 s diskret)
+## Signal Flow
 
-```
-                 ω_ref (tunbar) ──(+)──► e_curr ─────────────────┐
-                          ω(k) ──(−)──┘        e_prev = z⁻¹(e_curr)
-                                                                  │
-   y(k)=ω(k) ─┐                                                   ▼
-   y_prev = z⁻¹(y)  ─► [RLS] ─► a0,b0 ─► [PolePlace q0,q1] ─► d0,d1 ─► [PI] ─► u
-   u_prev = z⁻¹(u) ──────────────────────────────────────────────────────────┤
-                                                                  u ──► Saturation[-255,255] ──► Aktuator
-                                                                  (saturiertes u → z⁻¹ → u_prev)
+```text
+                  omega_ref (tunable) --(+)--> e_curr -------------------+
+                              omega(k) --(-)--> e_prev = z^-1(e_curr)    |
+                                                                           v
+   y(k)=omega(k) --+                                                     [PI] --> u
+   y_prev=z^-1(y) -+--> [RLS] --> a0,b0 --> [PolePlace q0,q1] --> d0,d1 --+
+   u_prev=z^-1(u_sat) ----------------------------------------------------+
+
+   u -> Saturation[-255,255] -> actuator path and u_prev feedback
 ```
 
-## I/O-Mapping ESP32
+## ESP32 I/O Mapping
 
-### Ausgang: u → Motor
-- `u` auf **[-255, 255]** saturieren.
-- **Betrag** `|u|` → **PWM** auf **GPIO14** (LEDC). Die bestätigte PWM-Block-Range
-  ist 0..255, daher wird `|u|` direkt verwendet.
-- **Vorzeichen** `sign(u)` → **Richtung** (Digital Output):
-  - `u ≥ 0`: IN1=1 (GPIO26), IN2=0 (GPIO27)
-  - `u < 0`: IN1=0, IN2=1
+### Output: `u` to Motor
 
-### Eingang: Encoder → ω
-- Quadratur-Counts `N` vom **`arduinosensorlib/Encoder`-Block** (Simulink Support
-  Package for Arduino Hardware 25.2.9), GPIO32/GPIO33 (Encoder A/B). Der Block arbeitet
-  interrupt-basiert mit ×4-Quadratur, liefert `int32` und läuft im Mode 'No reset'.
-  Für die Demo-Drehzahlen ist das ausreichend. ESP32-PCNT via `coder.ceval` bleibt
-  bei Count-Verlust eine Zukunftsoption.
-- `ΔN = N(k) − N(k−1)` (Unit Delay + Subtraktion).
-- `ω(k) = 2π · ΔN / (T · CPR)`, **CPR ≈ 44** (11 PPR ×4), im Lab nachmessen.
-- `y(k) = ω(k)`.
+- Saturate `u` to `[-255, 255]`.
+- Send `abs(u)` directly to PWM on GPIO 14. The confirmed LEDC block range is 0..255.
+- Map the sign of `u` to the L298N direction pins:
+  - `u >= 0`: IN1 = 1 on GPIO 26, IN2 = 0 on GPIO 27
+  - `u < 0`: IN1 = 0, IN2 = 1
 
-> ⚠️ `ω_ref` in **derselben Einheit** wie `ω` (rad/s). RLS adaptiert die realen `a0,b0`
-> (Einheiten u[counts]→ω[rad/s]) automatisch — deshalb kein manuelles Tuning der Streckenverstärkung.
+### Input: Encoder to `omega`
 
-## External Mode / Scopes
+- Read quadrature counts `N` from the `arduinosensorlib/Encoder` block in Simulink Support Package for Arduino Hardware 25.2.9 on GPIO 32 and GPIO 33.
+- The block runs interrupt based with x4 quadrature decoding, returns `int32`, and uses mode `No reset`.
+- Compute `DeltaN = N(k) - N(k-1)`.
+- Convert speed with `omega(k) = 2*pi*DeltaN/(T*CPR)`, using the measured `CPR = 44` from the one-revolution test.
+- Feed `y(k) = omega(k)` to the controller.
 
-Live mitschreiben/tunen: `ω`, `ω_ref`, `u`, `e`, `a0_est`, `b0_est`.
-`ω_ref` als **tunbaren Constant/Slider**. Für die Abgabe läuft der Prüfstand mit dem
-Motor ohne Schwungscheibe; der Wechsel **S → L** ist optional (nur falls montierbar).
-Die vollständige S→L→S-Demonstration ist in `../simulink/adaptive_dcmotor_sim.slx`
-validiert: `a0,b0` re-adaptieren, Einschwingen ≈ 0.25–0.4 s (Designziel 250 ms).
+`omega_ref` and `omega` use the same unit, rad/s. RLS adapts the real `a0` and `b0` values for the hardware plant, so no manual plant-gain tuning is required.
 
-## Build-Reihenfolge (inkrementell — nicht alles auf einmal!)
+## External Mode Signals
 
-1. **PWM open-loop**: nur `Constant(duty) → PWM GPIO14` + Richtung. Oszi an GPIO14, Duty live
-   tunen. ✓ Aktuator.
-2. **Encoder open-loop**: Encoder-Block → ΔN → ω → Scope. Welle von Hand/Motor drehen.
-   ✓ Sensor + CPR.
-3. **Regelkreis schließen**: RLS + PolePlace + PI dazwischen, Unit Delays, Saturation, ω_ref.
-   Strombegrenzung am Netzteil aktiv lassen, ω_ref langsam hochfahren.
+Monitor and tune `omega`, `omega_ref`, `u`, `e`, `a0_est`, `b0_est`, and `traceP`. The test bench runs with the bare motor for the submission. The complete S->L->S flywheel demonstration is validated in `../simulink/adaptive_dcmotor_sim.slx`; `a0` and `b0` re-adapt and the simulated settling time remains around 0.25-0.4 s.
 
-## Offene Punkte
+## Build Sequence
 
-1. **CPR-Diskrepanz:** Raffls Modell nutzt Gain `2π/11`, unsere Annahme ist
-   CPR ≈ 44 (11 PPR × 4) → Faktor 4. Per 1-Umdrehungs-Test klären (TESTPLAN Stufe 2),
-   nicht raten.
-2. **Minimale stabile Drehzahl / Deadband:** Losbrech-Duty und `ω_min` per statischer
-   `duty → ω`-Kennlinie messen (TESTPLAN Stufe 2b). Legt das zulässige `ω_ref`-Fenster fest.
-3. **Forward-only-Bring-up:** Messkette (N/ΔN/ω/IN1) vor dem Schließen des Regelkreises
-   am `Bring-up scope` verifizieren; Systematik + Entscheidungsbaum in
-   `../HARDWARE_BRINGUP_PLAN.md` und TESTPLAN Stufe 3 (Laborbefund 2026-07-11: ω-Spike-Pakete).
+1. PWM open loop: `Constant(duty) -> PWM GPIO14` plus fixed direction. Verify the actuator path before using encoder feedback.
+2. Encoder open loop: encoder block -> `DeltaN` -> `omega` -> scope. Verify monotonic counts and `CPR = 44` with one motor-shaft revolution.
+3. Closed loop: insert RLS, pole placement, incremental PI, unit delays, saturation, and `omega_ref`. Keep the bench supply current limit active and raise `omega_ref` gradually.
 
-Pin-Quelle: Raffls am Board getestetes Modell (2026-07-06).
+## Operating Constraints
+
+- The static duty-to-speed characteristic determines the practical low-speed deadband and the useful `omega_ref` range.
+- The measurement chain is checked before the loop is closed: monotonic `N`, single-signed `DeltaN`, plausible `omega`, and a stable forward direction command.
+- The physical test bench uses the bare motor. The flywheel inertia change is demonstrated in simulation.
