@@ -1,0 +1,87 @@
+\documentclass[   
+state        = Report,                       % (Report | Slide    | Thesis)
+lang         = EN,                           % (DE     | EN) 
+degree       = MSc,                          % (BSc    | MSc)
+dept         = MECH,                         % (MECH   | SBT)
+bib-active   = true,                         % (true   | false)
+bib-style    = ieee,                         % (ieee)
+column-type  = one,                          % (one    | two)
+]{mcidoc}
+
+% CUSTOM COMMANDS -----------------------------------------------------------------------------
+%       
+% Please enter any custom command/packages you require here for easy tracking 
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mismath}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{subcaption}
+\usepackage{ifthen}
+\usepackage{siunitx}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,positioning}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage[european]{circuitikz} % 'european' für die Darstellung der Widerstände
+% For example, bibliography setting are added. Bibtex is the standard but if you prefer
+% there are other options on the market such as biber. Style has been chosen as IEEE but if 
+% are from another discipline, please feel free to change it.
+
+\bibliography{references.bib}  % Here we add our file where we store our references.
+%      
+% ---------------------------------------------------------------------------------------------
+
+% DOCUMENT PARAMETERS -------------------------------------------------------------------------
+
+\TitleHeader{Project Report}%   
+
+\Title{%
+  Adaptive Control of a DC-Motor 
+}% 
+
+\Lecture{Advanced Control Engineering II}%    
+
+\Lecturer{Andreas Mehrle}%
+
+\Cohort{MA-MECH-25}%           
+\Group{MA-MECH-25-VZ}%
+
+\StudentName{Felix Raffl,Lenard Wild}%
+
+
+
+\begin{document} % ############################################################################\MakeTitlePage     
+
+% REPORT CONTENT ------------------------------------------------------------------------------
+
+% ----      
+% Your report content should go here and should follow structure befitting of a scientific
+% report and should be written in a scientific format. For more information please look at
+% MCI guidelines on how it should be done.      
+% ----  
+
+% Include Chapter - introduction
+\include{chapter/q1.tex}   
+
+% ---- 
+% Add as many chapters as you see fit for your content. For easy legibility and for dynamic
+% adjustment of content it would be suggested to write your files and place them similar to
+% the aforementioned examples.
+
+% REPORT POSTAMBLE ----------------------------------------------------------------------------
+
+
+% ----
+
+
+% \makeindex
+% \printnomenclature
+% \printglossaries
+
+\end{document} % ##############################################################################
