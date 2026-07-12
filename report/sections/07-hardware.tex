@@ -1,0 +1,34 @@
+\subsection{Hardware realisation}
+
+The hardware platform is an ESP32-WROOM module connected to an L298N H-bridge.
+The L298N introduces an approximate voltage drop of \(\SI{4}{V}\), so with a
+\(\SI{12}{V}\) supply the motor sees about \(\SI{8}{V}\). The motor is equipped
+with a quadrature encoder. The sampling time is \(T=\SI{0.08}{s}\).
+
+The controller is implemented by automatic code generation from Simulink using
+the Embedded Real-Time (ERT) target and the ESP32 target support. External Mode
+is used for Monitor and Tune operation during experiments.
+
+\begin{scripttable}
+  \centering
+  \caption{ESP32 pin assignment for the DC motor test rig.}
+  \label{tab:esp32-pin-assignment}
+  \begin{tabular}{ll}
+    \toprule
+    Signal & ESP32 pin \\
+    \midrule
+    PWM & GPIO 14 \\
+    IN1 & GPIO 26 \\
+    IN2 & GPIO 27 \\
+    Encoder A & GPIO 32 \\
+    Encoder B & GPIO 33 \\
+    \bottomrule
+  \end{tabular}
+\end{scripttable}
+
+The closed loop runs on the hardware. However, the encoder resolution in
+counts per revolution has not yet been calibrated. All reported speeds on the
+hardware are therefore in gain scale. Depending on whether the encoder is
+interpreted as 11 or 44 impulses per revolution, the scale differs by a factor
+of 4. No absolute speed values in \(\si{rad/s}\) are treated as verified, and
+no hardware settling times are stated here.

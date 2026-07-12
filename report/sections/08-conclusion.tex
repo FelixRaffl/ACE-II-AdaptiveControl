@@ -1,0 +1,13 @@
+\subsection{Conclusion}
+
+The first-order self-tuning regulator from the reader was transferred to an
+ESP32-based DC motor rig. In simulation, the excitation gate and the
+\(|b_0|>10^{-3}\) guard keep the indirect adaptive loop well behaved during
+standstill and inertia changes. The validated run shows bounded command effort,
+fast reconvergence of the plant numerator after the S--L change, and no
+limit-cycle behaviour after the L--S change when \(\alpha=0.98\) is used.
+
+The hardware implementation is operational, but quantitative speed results
+remain limited by the uncalibrated encoder gain. The next step is therefore
+encoder calibration before absolute speed plots and hardware settling times can
+be reported.

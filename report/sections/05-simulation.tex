@@ -1,0 +1,36 @@
+\subsection{Simulation}
+
+The validation run uses the normalised plant \(K_m=1\), \(b=1\). The inertia
+switches from the small flywheel to the large flywheel and back to the small
+flywheel, abbreviated as S--L--S, with
+\begin{equation}
+  J=1
+  \qquad\hbox{and}\qquad
+  J=24 .
+  \label{eq:simulation-inertias}
+\end{equation}
+The ratio \(24{:}1\) corresponds to the two flywheels. The run lasts
+\(\SI{96}{s}\). The reference is a rectangular speed command with amplitude
+\(\SI{50}{rad/s}\) and period \(\SI{16}{s}\), starting at \(t=\SI{4}{s}\) from
+standstill. Measurement noise is included.
+
+With \(\alpha=0.98\), the overshoot before the inertia change lies between
+\(\SI{0.74}{\percent}\) and \(\SI{0.84}{\percent}\). The \(2\%\) settling time
+is \(\SI{0.40}{s}\). After the L--S change the first transient reaches
+\(\SI{1.83}{\percent}\) overshoot and settles in \(\SI{0.56}{s}\). The next
+two transients give \(\SI{0.78}{\percent}\) with \(\SI{0.48}{s}\), and
+\(\SI{0.77}{\percent}\) with \(\SI{0.40}{s}\), respectively.
+
+The motor command remains inside the saturation limits \(\pm255\). During
+standstill the trace of \(P\) remains constant at 200, showing that the
+excitation gate prevents covariance windup. The maximum trace over the whole
+run is also 200. After the S--L inertia change, \(b_0\) reconverges after
+\(\SI{12.24}{s}\), or \(\SI{8.24}{s}\) after the first exciting reference edge.
+After the L--S change, the command sign changes at \(0.12\) times per second;
+this does not indicate a limit cycle.
+
+The forgetting factor is deliberately set to \(\alpha=0.98\), rather than
+\(\alpha=1.0\). With \(\alpha=1.0\), the covariance becomes too small during
+the earlier part of the run. After the L--S inertia change the estimator then
+does not relearn the new plant quickly enough, and the closed loop ends in a
+limit cycle with command chattering.
