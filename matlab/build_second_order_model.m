@@ -32,10 +32,9 @@ function p = secondOrderParams()
     p.uMax    = 12;     % armature voltage limit [V]
     p.kFreeze = 50;     % apply pole placement only after 50 samples
     p.tEnd    = 8;      % simulation horizon [s]
-    p.tPhase1 = 4;      % PRBS excitation horizon [s]
+    p.tPhase1 = 4;      % dither excitation horizon [s]
 
-    p.refLow     = 60;
-    p.refHigh    = 120;
+    p.ditherAmp  = 1.5; % PRBS actuator dither amplitude [V]
     p.prbsHold   = 5;   % bit duration in samples, 5*T = 10 ms
     p.tracePLimit = 9000;
 
@@ -84,8 +83,10 @@ function buildSecondOrderSimModel(p, outDir)
         'Location', [100 100 1450 720]);
 
     refProfile = buildReferenceProfile(p);
+    ditherProfile = buildDitherProfile(p);
     mdlWks = get_param(mdl, 'ModelWorkspace');
     assignin(mdlWks, 'refProfile', refProfile);
+    assignin(mdlWks, 'ditherProfile', ditherProfile);
 
     add_block('simulink/Sources/From Workspace', [mdl '/Reference profile'], ...
         'VariableName', 'refProfile', ...
@@ -93,6 +94,12 @@ function buildSecondOrderSimModel(p, outDir)
         'Interpolate', 'off', ...
         'OutputAfterFinalValue', 'Holding final value', ...
         'Position', [45 105 155 145]);
+    add_block('simulink/Sources/From Workspace', [mdl '/Dither profile'], ...
+        'VariableName', 'ditherProfile', ...
+        'SampleTime', num(p.T), ...
+        'Interpolate', 'off', ...
+        'OutputAfterFinalValue', 'Holding final value', ...
+        'Position', [45 205 155 245]);
 
     ctrl = [mdl '/Adaptive RST controller'];
     add_block('simulink/Ports & Subsystems/Subsystem', ctrl, ...
@@ -125,6 +132,7 @@ function buildSecondOrderSimModel(p, outDir)
     add_line(mdl, 'Reference profile/1', 'Adaptive RST controller/1', 'autorouting', 'on');
     add_line(mdl, 'Adaptive RST controller/1', 'ZOH motor plant/1', 'autorouting', 'on');
     add_line(mdl, 'ZOH motor plant/1', 'Adaptive RST controller/2', 'autorouting', 'on');
+    add_line(mdl, 'Dither profile/1', 'Adaptive RST controller/3', 'autorouting', 'on');
 
     add_line(mdl, 'Reference profile/1', 'Tracking mux/1', 'autorouting', 'on');
     add_line(mdl, 'ZOH motor plant/1', 'Tracking mux/2', 'autorouting', 'on');
@@ -148,7 +156,8 @@ function buildSecondOrderSimModel(p, outDir)
     logSignal([mdl '/Adaptive RST controller'], 6, 'traceP');
 
     addNote(mdl, ['Second-order adaptive DC-motor simulation.' newline ...
-        'Exact ZOH plant, T = ' num(p.T) ' s, PRBS reference 60/120 rad/s until ' ...
+        'Exact ZOH plant, T = ' num(p.T) ' s, constant 90 rad/s reference ' ...
+        'with +/-' num(p.ditherAmp) ' V actuator PRBS dither until ' ...
         num(p.tPhase1) ' s, then steps 90/130/90 rad/s.' newline ...
         'RLS theta = [a1; a0; b1; b0], P0 = ' num(p.P0) ...
         ', alpha = ' num(p.alpha) ', u in [' num(-p.uMax) ', ' num(p.uMax) '] V.'], [40 20]);
@@ -168,9 +177,26 @@ function refProfile = buildReferenceProfile(p)
     t = (0:p.T:p.tEnd).';
     ref = zeros(size(t));
 
+    for k = 1:numel(t)
+        if t(k) < 5.5
+            ref(k) = 90;
+        elseif t(k) < 7.0
+            ref(k) = 130;
+        else
+            ref(k) = 90;
+        end
+    end
+
+    refProfile = [t, ref];
+end
+
+function ditherProfile = buildDitherProfile(p)
+    t = (0:p.T:p.tEnd).';
+    dither = zeros(size(t));
+
     reg = ones(1, 7);
     holdCount = 0;
-    level = p.refLow;
+    level = p.ditherAmp;
     for k = 1:numel(t)
         if t(k) < p.tPhase1
             if holdCount <= 0
@@ -183,21 +209,15 @@ function refProfile = buildReferenceProfile(p)
                 reg(3) = reg(2);
                 reg(2) = reg(1);
                 reg(1) = newBit;
-                level = p.refLow + (p.refHigh - p.refLow) * outBit;
+                level = p.ditherAmp * (2 * outBit - 1);
                 holdCount = p.prbsHold;
             end
-            ref(k) = level;
+            dither(k) = level;
             holdCount = holdCount - 1;
-        elseif t(k) < 5.5
-            ref(k) = 90;
-        elseif t(k) < 7.0
-            ref(k) = 130;
-        else
-            ref(k) = 90;
         end
     end
 
-    refProfile = [t, ref];
+    ditherProfile = [t, dither];
 end
 
 %% ------------------------------------------- shared controller subsystem
@@ -207,6 +227,8 @@ function buildControllerSubsystem(ctrl, p)
         'Port', '1', 'Position', [20 55 50 75]);
     add_block('simulink/Ports & Subsystems/In1', [ctrl '/speed'], ...
         'Port', '2', 'Position', [20 155 50 175]);
+    add_block('simulink/Ports & Subsystems/In1', [ctrl '/dither'], ...
+        'Port', '3', 'Position', [455 155 485 175]);
     add_block('simulink/Ports & Subsystems/Out1', [ctrl '/u_sat'], ...
         'Port', '1', 'Position', [820 55 850 75]);
     add_block('simulink/Ports & Subsystems/Out1', [ctrl '/a1_est'], ...
@@ -271,9 +293,11 @@ function buildControllerSubsystem(ctrl, p)
         "u = u1 - c0 * (u1 - u2) + d2 * e + d1 * e1 + d0 * e2;" newline ...
         "end"]);
 
+    add_block('simulink/Math Operations/Sum', [ctrl '/Dither injection'], ...
+        'Inputs', '++', 'Position', [615 55 645 85]);
     add_block('simulink/Discontinuities/Saturation', [ctrl '/Voltage saturation'], ...
         'UpperLimit', num(p.uMax), 'LowerLimit', num(-p.uMax), ...
-        'Position', [635 50 700 90]);
+        'Position', [675 50 740 90]);
 
     add_line(ctrl, 'reference/1', 'Tracking error/1', 'autorouting', 'on');
     add_line(ctrl, 'speed/1', 'Tracking error/2', 'autorouting', 'on');
@@ -308,7 +332,9 @@ function buildControllerSubsystem(ctrl, p)
     add_line(ctrl, 'Pole placement/4', 'RST law/4', 'autorouting', 'on');
     add_line(ctrl, 'u_prev1/1', 'RST law/8', 'autorouting', 'on');
     add_line(ctrl, 'u_prev2/1', 'RST law/9', 'autorouting', 'on');
-    add_line(ctrl, 'RST law/1', 'Voltage saturation/1', 'autorouting', 'on');
+    add_line(ctrl, 'RST law/1', 'Dither injection/1', 'autorouting', 'on');
+    add_line(ctrl, 'dither/1', 'Dither injection/2', 'autorouting', 'on');
+    add_line(ctrl, 'Dither injection/1', 'Voltage saturation/1', 'autorouting', 'on');
     add_line(ctrl, 'Voltage saturation/1', 'u_prev1/1', 'autorouting', 'on');
     add_line(ctrl, 'u_prev1/1', 'u_prev2/1', 'autorouting', 'on');
     add_line(ctrl, 'Voltage saturation/1', 'u_sat/1', 'autorouting', 'on');
