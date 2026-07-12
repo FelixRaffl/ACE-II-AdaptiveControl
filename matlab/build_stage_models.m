@@ -60,6 +60,18 @@ function p = stageParams()
     p.refDelay = 4;    % idle start: exercises the RLS excitation gate
     p.noiseVariance = 1e-3 / p.T;
     p.noiseSeed = 23341;
+
+    % Hardware reference source (lab state 2026-07-11): constant omega_ref or a
+    % duty-equivalent pulse, selectable via Manual Switch, both scaled by the
+    % measured full-duty speed. 780 rad/s at duty 255 is in the CURRENT encoder
+    % gain scale (CPR = 44 assumption, unresolved) - re-calibrate after the
+    % one-revolution CPR test.
+    p.hwRefScale       = '780/255'; % rad/s per duty count (full-duty test)
+    p.hwRefPulseAmp    = 255;       % pulse amplitude, duty-equivalent
+    p.hwRefPulsePeriod = 8;         % pulse period in s
+    p.hwRefPulseWidth  = 50;        % pulse width in % of period
+    p.encTestDuty      = 255;       % encoder_test PWM duty (lab state; lower it
+                                    % in External Mode for the staged ramp)
 end
 
 function s = num(v)
@@ -362,6 +374,14 @@ function buildHardwareModel(p, outDir)
 
     add_block('simulink/Sources/Constant', [mdl '/omega_ref'], ...
         'Value', '0', 'SampleTime', num(p.T), 'Position', [40 98 110 132]);
+    add_block('simulink/Sources/Pulse Generator', [mdl '/Pulse Generator'], ...
+        'PulseType', 'Time based', 'Amplitude', num(p.hwRefPulseAmp), ...
+        'Period', num(p.hwRefPulsePeriod), 'PulseWidth', num(p.hwRefPulseWidth), ...
+        'Position', [40 160 110 194]);
+    add_block('simulink/Signal Routing/Manual Switch', [mdl '/Manual Switch'], ...
+        'Position', [150 112 185 148]);
+    add_block('simulink/Math Operations/Gain', [mdl '/Gain'], ...
+        'Gain', p.hwRefScale, 'Position', [215 105 275 155]);
 
     ctrl = [mdl '/Adaptive controller'];
     add_block('simulink/Ports & Subsystems/Subsystem', ctrl, ...
@@ -426,7 +446,10 @@ function buildHardwareModel(p, outDir)
         'Position', [1100 600 1150 680]);
     configureScope([mdl '/Bring-up scope'], 4, true);
 
-    nameLine(add_line(mdl, 'omega_ref/1', 'Adaptive controller/1', 'autorouting', 'on'), 'omega_ref');
+    nameLine(add_line(mdl, 'omega_ref/1', 'Manual Switch/1', 'autorouting', 'on'), 'omega_ref');
+    add_line(mdl, 'Pulse Generator/1', 'Manual Switch/2', 'autorouting', 'on');
+    add_line(mdl, 'Manual Switch/1', 'Gain/1', 'autorouting', 'on');
+    add_line(mdl, 'Gain/1', 'Adaptive controller/1', 'autorouting', 'on');
     nameLine(add_line(mdl, 'Encoder/1', 'Count to double/1', 'autorouting', 'on'), 'N');
     add_line(mdl, 'Count to double/1', 'Delta N/1', 'autorouting', 'on');
     add_line(mdl, 'Count to double/1', 'N_prev/1', 'autorouting', 'on');
@@ -438,7 +461,7 @@ function buildHardwareModel(p, outDir)
     add_line(mdl, 'H-bridge map/2', 'IN1 GPIO26/1', 'autorouting', 'on');
     add_line(mdl, 'H-bridge map/3', 'IN2 GPIO27/1', 'autorouting', 'on');
 
-    add_line(mdl, 'omega_ref/1', 'Tracking mux/1', 'autorouting', 'on');
+    add_line(mdl, 'Gain/1', 'Tracking mux/1', 'autorouting', 'on');
     add_line(mdl, 'Counts to rad_s/1', 'Tracking mux/2', 'autorouting', 'on');
     add_line(mdl, 'Tracking mux/1', 'Tracking scope/1', 'autorouting', 'on');
     nameLine(add_line(mdl, 'Adaptive controller/2', 'a0b0 mux/1', 'autorouting', 'on'), 'a0_est');
@@ -458,6 +481,9 @@ function buildHardwareModel(p, outDir)
 
     addNote(mdl, ['Stage 3 - adaptive controller on ESP32 (External Mode). Bare motor, ' ...
         'no flywheel.' newline 'Pins: PWM 14, IN1/IN2 26/27, Encoder A/B 32/33. T = 80 ms.' newline ...
+        'Reference: omega_ref constant (default 0) or duty-equivalent pulse via ' ...
+        'Manual Switch, scaled 780/255 rad/s per count (full-duty test 2026-07-11, ' ...
+        'gain scale - CPR unresolved).' newline ...
         'Bring-up (TESTPLAN Stage 3): check N / delta N / omega / IN1 on the Bring-up ' ...
         'scope first; force forward-only by tuning the Saturation lower limit to 0 for ' ...
         'the initial unit step.'], [40 30]);
@@ -475,7 +501,7 @@ function buildEncoderTest(p, outDir)
 
     % Stage-1 PWM path (spin the motor while checking the encoder)
     add_block('simulink/Sources/Constant', [mdl '/duty'], ...
-        'Value', '0', 'SampleTime', num(p.T), 'Position', [60 90 130 124]);
+        'Value', num(p.encTestDuty), 'SampleTime', num(p.T), 'Position', [60 90 130 124]);
     addLibBlock('arduinolib/PWM', [mdl '/PWM GPIO14'], [220 80 290 120], ...
         'pinNumber', num(p.pinPWM));
     add_block('simulink/Sources/Constant', [mdl '/dir 1'], ...
