@@ -5,17 +5,17 @@
 % tracking bias in settled second-phase step windows.
 %
 % Usage:
-%   matlab.exe -wait -nosplash -sd <stage> -batch "validate_second_order"
+%   cd matlab
+%   matlab -batch "validate_second_order"
 
-outDir = getenv('ACE_OUT_DIR');
-if isempty(outDir), outDir = pwd; end
+scriptDir = fileparts(mfilename('fullpath'));
+repoRoot = fileparts(scriptDir);
+modelDir = getenv('ACE_OUT_DIR');
+if isempty(modelDir), modelDir = fullfile(repoRoot, 'simulink'); end
 
 p = secondOrderParams();
 mdl = 'adaptive_dcmotor_2nd_sim';
-modelFile = fullfile(outDir, [mdl '.slx']);
-if ~exist(modelFile, 'file')
-    modelFile = fullfile(pwd, [mdl '.slx']);
-end
+modelFile = fullfile(modelDir, [mdl '.slx']);
 
 load_system(modelFile);
 set_param(mdl, 'SimulationMode', 'normal');
@@ -82,7 +82,7 @@ end
 fprintf('Step 5.5 s overshoot: %.4f rad/s (%.3f %% of step)\n', ...
     stepOvershoot, stepOvershootPct);
 fprintf('Step 5.5 s 2%% settling time: %.4f s\n', stepSettlingTime);
-fprintf('\nParameter | geschätzt (t=3..4 s) | wahr | Fehler\n');
+fprintf('\nParameter | estimated (t=3..4 s) | true | abs error\n');
 names = {'a1'; 'a0'; 'b1'; 'b0'};
 for k = 1:numel(names)
     fprintf('%-9s | %20.6f | %10.6f | %10.3e\n', ...

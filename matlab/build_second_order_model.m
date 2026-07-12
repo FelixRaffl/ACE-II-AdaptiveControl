@@ -1,6 +1,7 @@
 %% Build the second-order adaptive DC-motor simulation model.
 %
-% Builds one self-contained Simulink model into ACE_OUT_DIR (default: pwd):
+% Builds one self-contained Simulink model into ACE_OUT_DIR
+% (default: <repoRoot>/simulink):
 %   adaptive_dcmotor_2nd_sim.slx
 %
 % The model uses an exact ZOH-discretized second-order motor plant, a
@@ -9,10 +10,14 @@
 % from the fourth-order Diophantine pole-placement equation.
 %
 % Usage:
-%   matlab.exe -wait -nosplash -sd <stage> -batch "build_second_order_model"
+%   cd matlab
+%   matlab -batch "build_second_order_model"
 
+scriptDir = fileparts(mfilename('fullpath'));
+repoRoot = fileparts(scriptDir);
 outDir = getenv('ACE_OUT_DIR');
-if isempty(outDir), outDir = pwd; end
+if isempty(outDir), outDir = fullfile(repoRoot, 'simulink'); end
+if ~exist(outDir, 'dir'), mkdir(outDir); end
 
 p = secondOrderParams();
 buildSecondOrderSimModel(p, outDir);

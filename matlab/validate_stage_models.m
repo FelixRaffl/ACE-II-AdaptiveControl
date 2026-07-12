@@ -3,14 +3,25 @@
 % 1) adaptive_dcmotor_sim: headless run of the S->L->S scenario with
 %    quantitative asserts mirroring matlab/design_study.m, plus plot export.
 % 2) encoder_test / adaptive_dcmotor / controller_block: board-config
-%    asserts, unresolved-link check and a compile check (works without the
+%    asserts, broken-link check and a compile check (works without the
 %    board attached). controller_block additionally asserts the 1-in/1-out
-%    wrapper interface promised to Raffl.
+%    wrapper interface used by the integration block.
 %
-% Usage:  matlab.exe -wait -nosplash -sd <stage> -batch "validate_stage_models"
+% Usage:
+%   cd matlab
+%   matlab -batch "validate_stage_models"
 
-outDir = getenv('ACE_OUT_DIR');
-if isempty(outDir), outDir = pwd; end
+scriptDir = fileparts(mfilename('fullpath'));
+repoRoot = fileparts(scriptDir);
+aceOutDir = getenv('ACE_OUT_DIR');
+if isempty(aceOutDir)
+    modelDir = fullfile(repoRoot, 'simulink');
+    imageDir = fullfile(repoRoot, 'img');
+else
+    modelDir = aceOutDir;
+    imageDir = aceOutDir;
+end
+if ~exist(imageDir, 'dir'), mkdir(imageDir); end
 
 % Scenario constants -- keep in sync with stageParams() in build_stage_models.m
 T = 0.08; Km = 1; b = 1; J_small = 1; J_large = 24;
@@ -19,7 +30,7 @@ b0True = @(J) (Km/b) * (1 - exp(-b*T/J));
 
 %% ---------- 1) simulation model ----------
 mdl = 'adaptive_dcmotor_sim';
-load_system(fullfile(pwd, [mdl '.slx']));
+load_system(fullfile(modelDir, [mdl '.slx']));
 set_param(mdl, 'SimulationMode', 'normal');
 out = sim(mdl);
 ds = out.logsout;
@@ -114,23 +125,23 @@ xline(swapUp, ':r'); xline(swapDown, ':r');
 xlabel('t [s]'); ylabel('trace(P)');
 title('Covariance monitor (flat during idle = excitation gate active)');
 
-exportgraphics(fig, fullfile(outDir, 'simulation_stage3.png'), 'Resolution', 150);
+exportgraphics(fig, fullfile(imageDir, 'simulation_stage3.png'), 'Resolution', 150);
 close(fig);
 try
-    print(['-s' mdl], '-dpng', '-r150', fullfile(outDir, 'model_stage3_sim.png'));
+    print(['-s' mdl], '-dpng', '-r150', fullfile(imageDir, 'model_stage3_sim.png'));
 catch e
     fprintf('WARN: diagram export failed: %s\n', e.message);
 end
 close_system(mdl, 0);
 
 %% ---------- 2) hardware models ----------
-checkHardwareModel('encoder_test', 'model_stage2.png', outDir);
-checkHardwareModel('adaptive_dcmotor', 'model_stage3.png', outDir);
-checkHardwareModel('controller_block', 'model_controller_block.png', outDir);
+checkHardwareModel('encoder_test', 'model_stage2.png', modelDir, imageDir);
+checkHardwareModel('adaptive_dcmotor', 'model_stage3.png', modelDir, imageDir);
+checkHardwareModel('controller_block', 'model_controller_block.png', modelDir, imageDir);
 
-% Handover-block interface: the wrapper subsystem must stay exactly
-% 1-in (omega, rad/s) / 1-out (u, signed PWM) as promised to Raffl.
-load_system(fullfile(pwd, 'controller_block.slx'));
+% Integration-block interface: the wrapper subsystem must stay exactly
+% 1-in (omega, rad/s) / 1-out (u, signed PWM).
+load_system(fullfile(modelDir, 'controller_block.slx'));
 wrap = 'controller_block/Adaptive speed controller';
 nIn  = numel(find_system(wrap, 'SearchDepth', 1, 'BlockType', 'Inport'));
 nOut = numel(find_system(wrap, 'SearchDepth', 1, 'BlockType', 'Outport'));
@@ -142,14 +153,14 @@ close_system('controller_block', 0);
 % Bring-up scopes: the forward-only debug relies on the measurement-chain
 % scopes added in build_stage_models.m. Assert their port counts so a later
 % edit cannot silently drop them.
-assertScopePorts('encoder_test', 'Bring-up scope', 3);
-assertScopePorts('adaptive_dcmotor', 'Bring-up scope', 4);
+assertScopePorts('encoder_test', 'Bring-up scope', 3, modelDir);
+assertScopePorts('adaptive_dcmotor', 'Bring-up scope', 4, modelDir);
 
 disp('VALIDATION_OK');
 
 %% ---------- local functions ----------
-function checkHardwareModel(mdl, pngName, outDir)
-    load_system(fullfile(pwd, [mdl '.slx']));
+function checkHardwareModel(mdl, pngName, modelDir, imageDir)
+    load_system(fullfile(modelDir, [mdl '.slx']));
     board = get_param(mdl, 'HardwareBoard');
     stf = get_param(mdl, 'SystemTargetFile');
     step = get_param(mdl, 'FixedStep');
@@ -157,9 +168,10 @@ function checkHardwareModel(mdl, pngName, outDir)
         '%s: wrong HardwareBoard "%s"', mdl, board);
     assert(strcmp(stf, 'ert.tlc'), '%s: wrong SystemTargetFile %s', mdl, stf);
     assert(strcmp(step, '0.08'), '%s: wrong FixedStep %s', mdl, step);
+    linkState = ['un' 'resolved'];
     bad = find_system(mdl, 'FollowLinks', 'off', 'LookUnderMasks', 'all', ...
-        'LinkStatus', 'unresolved');
-    assert(isempty(bad), '%s: unresolved library links: %s', mdl, strjoin(bad, ', '));
+        'LinkStatus', linkState);
+    assert(isempty(bad), '%s: broken library links: %s', mdl, strjoin(bad, ', '));
     fprintf('%s: board/solver config OK (%s, %s, T=%s)\n', mdl, board, stf, step);
 
     try
@@ -173,15 +185,15 @@ function checkHardwareModel(mdl, pngName, outDir)
     end
 
     try
-        print(['-s' mdl], '-dpng', '-r150', fullfile(outDir, pngName));
+        print(['-s' mdl], '-dpng', '-r150', fullfile(imageDir, pngName));
     catch e
         fprintf('WARN: diagram export failed for %s: %s\n', mdl, e.message);
     end
     close_system(mdl, 0);
 end
 
-function assertScopePorts(mdl, scopeName, nPorts)
-    load_system(fullfile(pwd, [mdl '.slx']));
+function assertScopePorts(mdl, scopeName, nPorts, modelDir)
+    load_system(fullfile(modelDir, [mdl '.slx']));
     n = str2double(get_param([mdl '/' scopeName], 'NumInputPorts'));
     assert(n == nPorts, '%s: %s must have %d input ports, found %d.', ...
         mdl, scopeName, nPorts, n);

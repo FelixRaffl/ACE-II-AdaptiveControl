@@ -5,17 +5,24 @@
 %   identifiability_T.png
 %
 % Usage:
-%   matlab.exe -wait -nosplash -sd <stage> -batch "export_second_order_plots"
+%   cd matlab
+%   matlab -batch "export_second_order_plots"
 
-outDir = getenv('ACE_OUT_DIR');
-if isempty(outDir), outDir = pwd; end
+scriptDir = fileparts(mfilename('fullpath'));
+repoRoot = fileparts(scriptDir);
+aceOutDir = getenv('ACE_OUT_DIR');
+if isempty(aceOutDir)
+    modelDir = fullfile(repoRoot, 'simulink');
+    imageDir = fullfile(repoRoot, 'img');
+else
+    modelDir = aceOutDir;
+    imageDir = aceOutDir;
+end
+if ~exist(imageDir, 'dir'), mkdir(imageDir); end
 
 p = secondOrderParams();
 mdl = 'adaptive_dcmotor_2nd_sim';
-modelFile = fullfile(outDir, [mdl '.slx']);
-if ~exist(modelFile, 'file')
-    modelFile = fullfile(pwd, [mdl '.slx']);
-end
+modelFile = fullfile(modelDir, [mdl '.slx']);
 
 load_system(modelFile);
 set_param(mdl, 'SimulationMode', 'normal');
@@ -82,10 +89,10 @@ xlabel(errAx, 'time [s]');
 ylabel(errAx, 'max relative error');
 title(errAx, 'Normalized parameter estimation error');
 
-exportgraphics(fig, fullfile(outDir, 'simulation_2nd_order.png'), 'Resolution', 150);
+exportgraphics(fig, fullfile(imageDir, 'simulation_2nd_order.png'), 'Resolution', 150);
 close(fig);
 
-exportIdentifiabilityPlot(p, outDir);
+exportIdentifiabilityPlot(p, imageDir);
 disp('PLOTS_OK');
 
 %% ---------- local functions ----------

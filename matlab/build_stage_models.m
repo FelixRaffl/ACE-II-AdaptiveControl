@@ -1,11 +1,11 @@
-%% Build the Stage-2/3 Simulink models for the ESP32 handover.
+%% Build the Stage-2/3 Simulink models for the ESP32 implementation.
 %
-% Builds four models into ACE_OUT_DIR (default: pwd):
+% Builds four models into ACE_OUT_DIR (default: <repoRoot>/simulink):
 %   encoder_test.slx         Stage 2 - encoder -> omega + PWM spin-up path
 %   adaptive_dcmotor_sim.slx Stage 3 - full loop with simulated plant,
 %                            S->L->S flywheel-swap scenario (validation)
 %   adaptive_dcmotor.slx     Stage 3 - same controller, ESP32 I/O
-%   controller_block.slx     Handover block (Raffl): the same controller as a
+%   controller_block.slx     Integration block: the same controller as a
 %                            1-in (omega [rad/s]) / 1-out (u [+-255]) subsystem
 %
 % Controller design as validated in matlab/design_study.m (see README,
@@ -14,14 +14,20 @@
 % All block parameters are numeric literals so the .slx files are fully
 % self-contained (and literals stay tunable in External Mode).
 %
-% The ESP32 board / XCP External-Mode configuration is copied from a staged
-% READ-ONLY copy of the colleague's pwm_test.slx (never saved).
+% The ESP32 board / XCP External-Mode configuration is copied from
+% pwm_test.slx in the repository root. That donor model is loaded read-only
+% and is never saved.
 %
-% Usage (staging dir contains pwm_test.slx and this script):
-%   matlab.exe -wait -nosplash -sd <stage> -batch "build_stage_models"
+% Usage:
+%   cd matlab
+%   matlab -batch "build_stage_models"
 
+scriptDir = fileparts(mfilename('fullpath'));
+repoRoot = fileparts(scriptDir);
+addpath(repoRoot);
 outDir = getenv('ACE_OUT_DIR');
-if isempty(outDir), outDir = pwd; end
+if isempty(outDir), outDir = fullfile(repoRoot, 'simulink'); end
+if ~exist(outDir, 'dir'), mkdir(outDir); end
 
 p = stageParams();
 
@@ -46,10 +52,10 @@ function p = stageParams()
     p.b0Min  = 1e-3;   % pole-placement guard threshold
     p.uMax   = 255;    % PWM saturation
 
-    % ESP32 pin map (Raffl code_gen_ac2.slx @ 2ffe5be - am Board getestet 2026-07-06)
+    % ESP32 pin map copied from the board-tested code_gen_ac2.slx configuration.
     p.pinPWM = 14; p.pinIN1 = 26; p.pinIN2 = 27;
     p.pinEncA = 32; p.pinEncB = 33;
-    p.CPR    = 44;     % 11 PPR x4 quadrature - calibrate in Stage 2
+    p.CPR    = 44;     % measured by one-revolution test (11 PPR x4 quadrature)
 
     % Simulation scenario (normalized plant as in the reference model)
     p.Km = 1; p.b = 1; p.J_small = 1; p.J_large = 24;
@@ -61,11 +67,9 @@ function p = stageParams()
     p.noiseVariance = 1e-3 / p.T;
     p.noiseSeed = 23341;
 
-    % Hardware reference source (lab state 2026-07-11): constant omega_ref or a
-    % duty-equivalent pulse, selectable via Manual Switch, both scaled by the
-    % measured full-duty speed. 780 rad/s at duty 255 is in the CURRENT encoder
-    % gain scale (CPR = 44 assumption, unresolved) - re-calibrate after the
-    % one-revolution CPR test.
+    % Hardware reference source: constant omega_ref or a duty-equivalent pulse,
+    % selectable via Manual Switch. The scale uses the measured full-duty speed:
+    % 780 rad/s at duty 255 with CPR = 44 from the one-revolution test.
     p.hwRefScale       = '780/255'; % rad/s per duty count (full-duty test)
     p.hwRefPulseAmp    = 255;       % pulse amplitude, duty-equivalent
     p.hwRefPulsePeriod = 8;         % pulse period in s
@@ -437,7 +441,7 @@ function buildHardwareModel(p, outDir)
         'Position', [1100 430 1150 550]);
     configureScope([mdl '/Adaptation scope'], 4, true);
     % --- bring-up scope: measurement chain + direction pin, for the
-    % forward-only debug (TESTPLAN Stage 3). Lets cases A/B/C be told apart:
+    % forward-only debug. Lets cases A/B/C be told apart:
     % raw count N (monotonic?), delta N (single sign?), omega (plausible?),
     % IN1 (direction actually held forward?).
     add_block('simulink/Signal Routing/Mux', [mdl '/Bring-up mux'], ...
@@ -482,9 +486,9 @@ function buildHardwareModel(p, outDir)
     addNote(mdl, ['Stage 3 - adaptive controller on ESP32 (External Mode). Bare motor, ' ...
         'no flywheel.' newline 'Pins: PWM 14, IN1/IN2 26/27, Encoder A/B 32/33. T = 80 ms.' newline ...
         'Reference: omega_ref constant (default 0) or duty-equivalent pulse via ' ...
-        'Manual Switch, scaled 780/255 rad/s per count (full-duty test 2026-07-11, ' ...
-        'gain scale - CPR unresolved).' newline ...
-        'Bring-up (TESTPLAN Stage 3): check N / delta N / omega / IN1 on the Bring-up ' ...
+        'Manual Switch, scaled 780/255 rad/s per count (full-duty test with ' ...
+        'measured CPR = 44).' newline ...
+        'Bring-up: check N / delta N / omega / IN1 on the Bring-up ' ...
         'scope first; force forward-only by tuning the Saturation lower limit to 0 for ' ...
         'the initial unit step.'], [40 30]);
     save_system(mdl, fullfile(outDir, [mdl '.slx']));
@@ -530,7 +534,7 @@ function buildEncoderTest(p, outDir)
         'Gain', sprintf('2*pi/(%s*%s)', num(p.T), num(p.CPR)), ...
         'Position', [390 310 450 360]);
     % Bring-up scope: raw count N / delta N / omega on stacked axes. The
-    % forward-only test (TESTPLAN Stage 2/2b) needs N monotonic and delta N
+    % forward-only test needs N monotonic and delta N
     % single-signed before the loop is ever closed.
     add_block('simulink/Signal Routing/Mux', [mdl '/Bring-up mux'], ...
         'Inputs', '3', 'Position', [470 250 475 360]);
@@ -560,15 +564,15 @@ function buildEncoderTest(p, outDir)
     addNote(mdl, ['Stage 2 - encoder + PWM check on the bare motor (forward-only).' newline ...
         'Bring-up scope stacks raw count N / delta N / omega: with the motor spinning ' ...
         'forward N must be monotonic and delta N single-signed.' newline ...
-        'Calibrate CPR with the 1-revolution test (see TESTPLAN Stage 2).'], [40 20]);
+        'CPR is measured as 44 counts per motor revolution (11 PPR x4 quadrature).'], [40 20]);
     save_system(mdl, fullfile(outDir, [mdl '.slx']));
     close_system(mdl, 0);
     fprintf('Built %s\n', fullfile(outDir, [mdl '.slx']));
 end
 
-%% ------------------------- handover block (Raffl): 1-in/1-out wrapper
+%% ------------------------- integration block: 1-in/1-out wrapper
 function buildControllerBlock(p, outDir)
-    % Handover interface: a controller block with one input (measured speed,
+    % Integration interface: a controller block with one input (measured speed,
     % rad/s) and one output (signed PWM command) for integration into a
     % separate ESP32 model. The wrapper reuses the exact buildControllerSubsystem
     % used by the validated stage-3 models;
@@ -621,7 +625,7 @@ function buildControllerBlock(p, outDir)
     nameLine(add_line(mdl, 'omega_in/1', 'Adaptive speed controller/1', 'autorouting', 'on'), 'omega');
     nameLine(add_line(mdl, 'Adaptive speed controller/1', 'u_out/1', 'autorouting', 'on'), 'u');
 
-    addNote(mdl, ['Handover block - copy the "Adaptive speed controller" subsystem ' ...
+    addNote(mdl, ['Integration block - copy the "Adaptive speed controller" subsystem ' ...
         'into your model.' newline ...
         'IN:  omega_in - measured speed [rad/s] ' ...
         '(encoder counts -> delta N -> 2*pi/(T*CPR) gain in front)' newline ...

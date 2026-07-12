@@ -11,13 +11,18 @@
 %   C: as B + adaptive reference prefilter F(z)      (overshoot fix)
 %   D: alpha = 0.98, NO gain freeze                  (startup comparison)
 %
-% Usage:  matlab.exe -wait -nosplash -sd <dir> -batch "design_study"
+% Usage:
+%   cd matlab
+%   matlab -batch "design_study"
 
+scriptDir = fileparts(mfilename('fullpath'));
+repoRoot = fileparts(scriptDir);
 outDir = getenv('ACE_OUT_DIR');
-if isempty(outDir), outDir = pwd; end
+if isempty(outDir), outDir = fullfile(repoRoot, 'img'); end
+if ~exist(outDir, 'dir'), mkdir(outDir); end
 rng(23341);
 
-% Normalized plant as in the reference simulation (First Order Model .mlx)
+% Normalized plant model.
 p.T = 0.08; p.Km = 1; p.b = 1; p.J1 = 1; p.J2 = 24;
 p.q0 = 0.06; p.q1 = -0.5;
 p.Tend = 64; p.refAmp = 50; p.refPeriod = 16; p.tSwap = 32;
