@@ -31,22 +31,38 @@ shows the corresponding arrangement for the motor rig.
     \node[block, right=13mm of sum] (pi) {incremental\\PI};
     \node[block, right=18mm of pi] (io) {ESP32\\I/O};
     \node[block, right=18mm of io] (plant) {DC motor\\and encoder};
-    \node[right=11mm of plant] (y) {$y$};
+    \node[right=22mm of plant] (y) {$y$};
 
-    \node[smallblock, above=15mm of io] (pp) {pole\\placement};
-    \node[smallblock, above=15mm of plant] (rls) {RLS\\estimator};
+    \node[smallblock, above=26mm of io] (pp) {pole\\placement};
+    \node[smallblock, above=26mm of plant] (rls) {RLS\\estimator};
 
     \draw[signal] (r) -- (sum);
     \draw[signal] (sum) -- node {$e$} (pi);
     \draw[signal] (pi) -- node {$u$} (io);
     \draw[signal] (io) -- (plant);
-    \draw[signal] (plant) -- node {$y$} (y);
-    \draw[signal] ($(plant.east)+(4mm,0)$) |- ++(0,-13mm) -| node[pos=0.95, left] {$-$} (sum.south);
+    \draw[signal] (plant) -- (y);
 
-    \draw[signal] ($(pi.east)+(4mm,0)$) |- (rls.west);
-    \draw[signal] ($(plant.east)+(5mm,0)$) |- (rls.east);
+    \coordinate (fbtap) at ($(plant.east)+(6mm,0)$);
+    \coordinate (ytap)  at ($(plant.east)+(13mm,0)$);
+    \coordinate (utap)  at ($(pi.east)+(5mm,0)$);
+    \coordinate (uin)   at ($(rls.south)+(-6mm,0)$);
+    \coordinate (yin)   at ($(rls.south)+(6mm,0)$);
+
+    \draw[signal] (fbtap) |- ++(0,-13mm) -| node[pos=0.95, left] {$-$} (sum.south);
+
+    \draw[signal] (utap) |- ($(uin)+(0,-11mm)$) -- (uin);
+    \draw[signal] (ytap) |- ($(yin)+(0,-6mm)$) -- (yin);
+
+    \fill (utap)  circle (0.6mm);
+    \fill (ytap)  circle (0.6mm);
+    \fill (fbtap) circle (0.6mm);
+
     \draw[signal] (rls) -- node {$\hat a_0,\hat b_0$} (pp);
-    \draw[signal] (pp) -- node {$d_0,d_1$} (pi);
+
+    \coordinate (dcorner) at ($(pp.south)+(0,-5mm)$);
+    \coordinate (dturn)   at (pi.north |- dcorner);
+    \draw[signal] (pp.south) -- (dcorner)
+      -- node[above] {$d_0,d_1$} (dturn) -- (pi.north);
 
     \node[above=4mm of pp] {controller design};
     \node[above=4mm of rls] {plant estimation};

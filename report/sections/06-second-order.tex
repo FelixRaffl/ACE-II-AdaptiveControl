@@ -75,13 +75,11 @@ sampling time.
   \label{fig:second-order-identifiability}
 \end{figure}
 
-The same conclusion was confirmed by the test rig in a practical way. The
-second-order controller was tried on the hardware with
-\(T=\SI{80}{ms}\). The closed loop followed the reference stably, but the
-argument above implies that the parameter estimate cannot converge under that
-sampling. A stable closed loop is therefore not evidence of successful
-identification. The RST controller only needs certain combinations of the
-parameters, not their individual values.
+The consequence is easy to overlook in practice. At \(T=\SI{80}{ms}\) the
+closed loop can still follow the reference stably, even though the parameter
+estimate cannot converge under that sampling. A stable closed loop is therefore
+not evidence of successful identification. The RST controller only needs
+certain combinations of the parameters, not their individual values.
 
 The working design uses \(T=\SI{2}{ms}\). Persistent excitation is supplied by
 adding a PRBS dither to the manipulated variable. The dither is not added to
@@ -93,11 +91,11 @@ corresponding order.
 The estimator is used without forgetting, \(\alpha=1\). Without persistent
 excitation, \(\alpha<1\) makes \(P\) grow without bound in the unexcited
 directions. This covariance windup makes the estimate drift and can destabilise
-the controller. The effect was observed experimentally: the control error grew
-to \(\SI{88}{\percent}\).
+the controller. In simulation, the control error grew to
+\(\SI{88}{\percent}\).
 
 Integral action is also required. Pure pole placement fixes only the poles, not
-the static gain, and therefore leaves a steady-state error. The measured value
+the static gain, and therefore leaves a steady-state error. The simulated value
 was \(\SI{7.8}{\percent}\). The controller denominator is therefore chosen as
 \begin{equation}
   c(z)=(z-1)(z+c_0),
@@ -128,6 +126,8 @@ values.
 
 \begin{scripttable}
   \centering
+  \caption{Validated second-order parameter estimates at \(T=\SI{2}{ms}\).}
+  \label{tab:second-order-validated-estimates}
   \begin{tabular}{lrrr}
     \toprule
     Parameter & Estimated, \(t=\SIrange{3}{4}{s}\) & True & Absolute error \\
@@ -138,8 +138,6 @@ values.
     \(b_0\) & \( 0.014889\) & \( 0.014832\) & \(5.71\times10^{-5}\) \\
     \bottomrule
   \end{tabular}
-  \caption{Validated second-order parameter estimates at \(T=\SI{2}{ms}\).}
-  \label{tab:second-order-validated-estimates}
 \end{scripttable}
 
 The static closed-loop gain is \(T(1)=1.000\). For the step at
@@ -149,14 +147,14 @@ steady-state errors in the settled windows are \(\SI{0.000}{\percent}\),
 \(\SI{0.000}{\percent}\), and \(\SI{0.002}{\percent}\). The trace of \(P\)
 remains bounded at 400.
 
-\begin{center}
+\begin{figure}[htbp]
   \centering
   \includegraphics[width=0.82\linewidth]{../img/simulation_2nd_order.png}
-  \captionof{figure}{Validation run of the second-order adaptive RST controller with
+  \caption{Validation run of the second-order adaptive RST controller with
   \(T=\SI{2}{ms}\), persistent excitation, integral action, and the electrical
   pole retained in the desired polynomial.}
   \label{fig:second-order-simulation}
-\end{center}
+\end{figure}
 
 The first-order controller needs only two parameters, coarse excitation, and
 \(T=\SI{80}{ms}\), and it runs on the hardware. The second-order controller
