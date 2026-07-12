@@ -26,3 +26,13 @@ Thumbs.db
 *.tmp
 *.log
 matlab.settings
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.toc
+*.synctex.gz
