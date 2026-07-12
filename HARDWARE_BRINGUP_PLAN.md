@@ -317,17 +317,7 @@ Erst danach wieder bidirektionalen Betrieb freigeben.
 - CPR, Encoder-A/B-Farben und Deadband nur nach Messung finalisieren.
 - Die reale Abgabe verwendet den Motor ohne montierte Schwungscheibe.
 - Der Traegheitswechsel S -> L -> S wird in der Simulation gezeigt.
-- Keine Hinweise auf interne Arbeitsablaeufe in Abgabe-Dateien schreiben.
 - Keine Annahmen als Fakten dokumentieren.
-
-### Versionsverwaltung
-
-- Commit-Messages, Branch-Namen und Tags fachlich neutral halten.
-- Keine nicht fachbezogenen Autoren- oder Herkunfts-Trailer einfuegen.
-- Vor der Abgabe Commit-Historie, Diffs und exportierte Dateien auf interne
-  Arbeitsmetadaten pruefen.
-- Falls ein Abgabearchiv erstellt wird, nur fachlich relevante Projektdateien
-  aufnehmen und interne Planungs-/Arbeitsdateien ausschliessen.
 
 ### Code und Modellaufbau
 
@@ -363,13 +353,11 @@ Nicht zulaessig ohne Messdaten:
 
 ## Naechste konkrete Arbeitspakete
 
-1. Bring-up-Scopes in `encoder_test.slx` und `adaptive_dcmotor.slx` ueber den
-   Builder bereitstellen.
-2. CPR-Kalibrierung und statische `duty -> omega`-Kennlinie im Labor aufnehmen.
-3. `omega_min` bestimmen und den ersten Closed-loop-Sollwert oberhalb davon waehlen.
-4. Forward-only Unit-Step mit `LowerLimit = 0` fahren und `0 -> 30 rad/s` nur nutzen,
+1. CPR-Kalibrierung und statische `duty -> omega`-Kennlinie im Labor aufnehmen.
+2. `omega_min` bestimmen und den ersten Closed-loop-Sollwert oberhalb davon waehlen.
+3. Forward-only Unit-Step mit `LowerLimit = 0` fahren und `0 -> 30 rad/s` nur nutzen,
    wenn 30 rad/s oberhalb `omega_min` liegt.
-5. Erst nach erfolgreichem Step-Test `LowerLimit = -255` wiederherstellen und
+4. Erst nach erfolgreichem Step-Test `LowerLimit = -255` wiederherstellen und
    Pulse-Folge fuer die Demo aktivieren.
-6. 2nd-order-Erweiterung nur als geplanten Ausblick behandeln, nicht als
+5. 2nd-order-Erweiterung nur als geplanten Ausblick behandeln, nicht als
    Voraussetzung fuer die aktuelle Abgabe.
