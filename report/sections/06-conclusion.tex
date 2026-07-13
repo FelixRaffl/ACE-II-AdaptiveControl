@@ -9,8 +9,10 @@ identifies all four parameters in simulation at \(T=\SI{2}{ms}\) with an exact
 speed signal. On the rig the second-order model is structurally identifiable
 but not practically identifiable. At \(T=\SI{80}{ms}\) the electrical mode
 contributes about \(\SI{1}{\percent}\) of the output and is lost in the encoder
-quantisation; shortening the sampling time restores the sensitivity but the
-resolution collapses as \(1/T\), so about \(700\) counts per revolution would
-be needed instead of \(44\). The second-order design therefore remains a
+quantisation; recovering it at that sampling time would need about \(700\)
+counts per revolution instead of \(44\). Shortening the sampling time restores
+the sensitivity to the electrical mode, but the speed resolution degrades as
+\(1/T\), so with the measured encoder no sampling time satisfies both
+requirements. The second-order design therefore remains a
 simulation result, and the stable closed loop measured on the rig must not be
 mistaken for a successful identification.
