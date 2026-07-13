@@ -2,7 +2,7 @@
 
 Example 7.6 of the reader cites the experiment by Abram and Fieg, where the
 adaptive controller is implemented on an Arduino Due \cite{ravazzoloMehrle2026,abramFieg}.
-The present section realises the same self-tuning pole-placement idea on an
+The present report realises the same self-tuning pole-placement idea on an
 own test rig. The hardware consists of an ESP32, an L298N H-bridge, and a DC
 motor with a quadrature encoder. The controller is not hand-coded on the
 microcontroller; instead, the real-time code is generated automatically from
@@ -11,9 +11,13 @@ the Simulink model.
 The structure follows the indirect adaptive-control scheme of Figure 7.1 in
 the reader: the plant parameters are estimated recursively, the controller is
 redesigned from these estimates, and the resulting incremental PI algorithm is
-executed on the ESP32 input/output interface. Figure~\ref{fig:self-tuning-regulator}
-shows the arrangement for the motor rig. The first-order controller runs on
-the hardware, while the second-order extension is studied in simulation.
+executed on the ESP32 input/output interface.
+Figure~\ref{fig:self-tuning-regulator} shows the arrangement for the motor
+rig. After calibration by the one-revolution encoder test, the first-order
+self-tuning loop was run on the rig. The second-order controller was also run
+on the rig, but is reported only as diagnostic evidence for why full-order
+identification fails there; the working second-order design is a simulation
+result.
 
 \begin{figure}[htbp]
   \centering

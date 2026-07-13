@@ -61,6 +61,9 @@ build_second_order_model
 
 validate_second_order
 % expected: VALIDATION_OK
+
+identifiability_study
+% expected: STUDY_OK
 ```
 
 Optional output override, set before running the scripts:
@@ -77,6 +80,7 @@ matlab -batch "build_stage_models"       # expected: BUILD_OK
 matlab -batch "validate_stage_models"    # expected: VALIDATION_OK
 matlab -batch "build_second_order_model" # expected: BUILD_OK
 matlab -batch "validate_second_order"    # expected: VALIDATION_OK
+matlab -batch "identifiability_study"    # expected: STUDY_OK
 ```
 
 ## Safety checklist before power-up
@@ -89,7 +93,7 @@ matlab -batch "validate_second_order"    # expected: VALIDATION_OK
 
 ## Bring-up in stages
 
-### Stage 1: `pwm_test.slx`
+### Stage 1: `simulink/pwm_test.slx`
 
 Run the open-loop PWM model first. This stage does not use encoder feedback or a controller; it only drives the L298N from the ESP32.
 
@@ -109,17 +113,19 @@ Run `adaptive_dcmotor.slx` in External Mode after the PWM and encoder stages are
 
 What must work: the measured speed must follow the reference, the estimates `a0` and `b0` must converge instead of drifting, and `trace(P)` must fall from its initial value. If the controller saturates continuously or the estimates diverge, return to Stage 2 and verify encoder scaling and sign conventions.
 
-## Simulation only
+## Models and analysis
 
-| Model | Purpose |
+| Item | Purpose |
 |---|---|
-| `adaptive_dcmotor_sim.slx` | First-order adaptive controller with inertia change S -> L -> S |
-| `adaptive_dcmotor_2nd_sim.slx` | Second-order model with electrical dynamics, `T = 2 ms` |
+| `simulink/adaptive_dcmotor_sim.slx` | Simulation-only first-order adaptive controller with inertia change S -> L -> S |
+| `simulink/adaptive_dcmotor_2nd_sim.slx` | Simulation-only second-order model with electrical dynamics, `T = 2 ms` |
+| `simulink/adaptive_dcmotor_2nd_hw.slx` | Hardware experiment for the second-order controller at `T = 80 ms`; source of the two measurement figures in the report, not the recommended simulation model |
+| `matlab/plot_hardware_response.m` | Exports the logged hardware response from `simulink/adaptive_dcmotor_2nd_hw.slx` to `img/hw_response.pdf` |
 
-These models are for simulation and validation without the ESP32 hardware.
+`matlab/identifiability_study.m` shows why the second-order model can be identified in simulation but not on the rig, by sweeping the encoder resolution and the sampling time.
 
 ## Known limitations
 
 The controller cannot actively brake the motor. When the command is reduced, the motor coasts down instead of being driven with regenerative or dynamic braking.
 
-The flywheels are designed but not mounted for the submission. The inertia-change scenario is therefore demonstrated in simulation rather than on the physical test bench.
+The 44-count encoder resolves speed to `2*pi/(T*CPR)`, which is 1.78 rad/s at `T = 80 ms`. That is fine for the first-order model, but the second-order model's electrical mode contributes only about 1 % of the output at that sampling time and is lost in the quantisation. Reducing the sampling time does not help, because the resolution degrades as `1/T`. Running `identifiability_study` reproduces this limitation; see [report/report.pdf](report/report.pdf).

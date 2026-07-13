@@ -1,4 +1,4 @@
-\section{Second-order design}
+\section{Second-order design}\label{sec:second-order}
 
 With armature inductance \(L_a\), armature resistance \(R_a\), inertia \(J\),
 viscous friction \(b\), and motor constant \(K_m\), the continuous-time
@@ -23,21 +23,7 @@ The adaptive estimator therefore has four parameters, with regression vector
   \label{eq:second-order-regressor}
 \end{equation}
 
-Example 7.6 of the reader does not use the free \(c(z)\) of the general
-Diophantine system; it forces \(c(z)=z-1\), i.e. a PI controller. Our
-second-order design does the same thing one order higher. Pure pole placement
-fixes only the poles, not the static gain, and therefore leaves a steady-state
-error; the simulated value was \(7.8\) percent. To remove this error, the
-design forces
-\begin{equation}
-  c(z)=(z-1)(z+c_0),
-  \label{eq:second-order-integrator}
-\end{equation}
-which gives \(T(1)=1\). Equation 7.16 of the reader gives the general design
-equation whose linear system is solved for the controller coefficients at
-every sampling instant.
-
-The decisive point is the sampling time. For
+The numerical values used here,
 \[
   K_m=0.05,\quad
   J=\SI{0.001}{kg.m^2},\quad
@@ -45,41 +31,45 @@ The decisive point is the sampling time. For
   L_a=\SI{2}{mH},\quad
   R_a=\SI{2}{\ohm},
 \]
-the continuous poles are \(-998.7\,\si{s^{-1}}\) for the electrical mode and
-\(-1.75\,\si{s^{-1}}\) for the mechanical mode. The electrical time constant
-is therefore about \(\SI{1}{ms}\). Table~\ref{tab:second-order-zoh-values}
-shows the exact ZOH discretisation at the hardware sampling time and at a
-sampling time that resolves the electrical pole.
+are representative parameters of a small brushed DC motor, not measurements of
+the 25GA371 rig motor. The conclusion does not depend on their exact values,
+only on the electrical time constant being far shorter than the sampling time.
+They give continuous poles \(-998.7\,\si{s^{-1}}\) and
+\(-1.75\,\si{s^{-1}}\), so the electrical time constant is about
+\(\SI{1}{ms}\). Table~\ref{tab:second-order-zoh-values} shows the exact ZOH
+discretisation at the hardware sampling time and at a sampling time that
+resolves the electrical pole.
 
 \begin{scripttable}
   \centering
   \caption{Exact ZOH parameters of the second-order motor model.}
   \label{tab:second-order-zoh-values}
-  \begin{tabular}{rrrrrrl}
+  \begin{tabular}{rrrrrrrl}
     \toprule
-    \(T\) & \(a_1\) & \(a_0\) & \(b_1\) & \(b_0\) & \multicolumn{2}{c}{\(z\)-poles} \\
+    \(T\) & \(a_1\) & \(a_0\) & \(b_1\) & \(b_0\) &
+    \(b_0/b_1\) & \multicolumn{2}{c}{\(z\)-poles} \\
     \midrule
-    \(\SI{80}{ms}\) & \(-0.8692\) & \(0.000000\) & \(1.8467\) & \(0.0218\) & \(0.8692\) & \(0\) \\
-    \(\SI{2}{ms}\)  & \(-1.1322\) & \(0.1352\)   & \(0.0284\) & \(0.0148\) & \(0.9965\) & \(0.1357\) \\
+    \(\SI{80}{ms}\) & \(-0.8692\) & \(0.000000\) & \(1.8467\) &
+    \(0.0218\) & \(\SI{1.18}{\percent}\) & \(0.8692\) & \(0\) \\
+    \(\SI{2}{ms}\)  & \(-1.1322\) & \(0.1352\)   & \(0.0284\) &
+    \(0.0148\) & \(\SI{52.3}{\percent}\) & \(0.9965\) & \(0.1357\) \\
     \bottomrule
   \end{tabular}
 \end{scripttable}
 
-At \(T=\SI{80}{ms}\), the electrical pole is mapped to \(z=0\) and has fully
-decayed between two samples. Two of the four parameters then no longer
-contribute independent information, the regressor loses rank, and the plant is
-structurally not identifiable. The closed loop can nevertheless still follow
-the reference stably, even though the parameter estimate cannot converge under
-that sampling, because the controller only needs certain combinations of the
-parameters, not their individual values. A stable closed loop is therefore not
-evidence of successful identification. At \(T=\SI{2}{ms}\), the poles are
-\(0.9965\) and \(0.1357\), and all four parameters are identifiable.
-
-The working design uses \(T=\SI{2}{ms}\), with PRBS dither added to the
-manipulated variable. Clipping does not corrupt the estimate because the
-regressor uses the post-saturation command. The estimator is used without
-forgetting, \(\alpha=1\), because without persistent excitation \(\alpha<1\)
-makes \(P\) grow without bound.
+Example 7.6 of the reader does not use the free \(c(z)\) of the general
+Diophantine system; it forces \(c(z)=z-1\), i.e. a PI controller. The
+second-order design does the same thing one order higher. Pure pole placement
+fixes only the poles, not the static gain, and left a
+\(\SI{17.2}{\percent}\) steady-state error in simulation. To remove this error,
+the design forces
+\begin{equation}
+  c(z)=(z-1)(z+c_0),
+  \label{eq:second-order-integrator}
+\end{equation}
+which gives \(T(1)=1\). Equation 7.16 of the reader gives the design equation
+whose linear system is solved for the controller coefficients at every
+sampling instant.
 
 The desired closed-loop polynomial is
 \begin{equation}
@@ -97,3 +87,70 @@ controller must then invert the fast plant dynamics and becomes unstable
 itself, with its pole at \(|z|=2.66\), and behind a saturation limit such a
 controller necessarily diverges. The design rule is therefore to leave modes
 that are much faster than the desired bandwidth where they are.
+
+The working design uses \(T=\SI{2}{ms}\), with PRBS dither added to the
+manipulated variable. Clipping does not corrupt the estimate because the
+regressor uses the post-saturation command. The estimator is used without
+forgetting, \(\alpha=1\), because without persistent excitation \(\alpha<1\)
+makes \(P\) grow without bound.
+
+\subsection{Identifiability on the rig}\label{sec:identifiability}
+
+The ARX model is structurally identifiable at both sampling times. At
+\(T=\SI{80}{ms}\), \(A(z)=z(z-0.8692)\) and
+\(B(z)=1.8467z+0.0218\) are coprime; the ZOH numerator zero is at
+\(-b_0/b_1=-0.0118\), so it does not cancel the pole at the origin. The
+failure on the rig is practical, or statistical, identifiability.
+
+Two effects pull against each other with \(T\). Sensitivity to the electrical
+mode decays as \(\exp(p_eT)\), so at \(T=\SI{80}{ms}\) the \(b_0\) term is only
+\(\SI{1.18}{\percent}\) of the output, while the speed quantisation step
+\(d_q=2\pi/(T\,\mathrm{CPR})\) grows as \(1/T\), with variance proportional to
+\(1/T^2\). With the measured \(\mathrm{CPR}=44\), no sampling time satisfies
+both requirements.
+
+\begin{scripttable}
+  \centering
+  \caption{Open-loop second-order identification under encoder quantisation.}
+  \label{tab:second-order-identifiability-study}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    setting & step [\si{rad/s}] & \(a_1\) err & \(b_1\) err &
+    \(\lvert a_0\ \mathrm{err}\rvert\) & \(b_0\) err \\
+    \midrule
+    \multicolumn{6}{l}{Encoder resolution at \(T=\SI{80}{ms}\)} \\
+    \(\mathrm{CPR}=44\)  & \(1.785\) & \(-25.6\,\%\) & \(-0.06\,\%\) & \(0.194\) & \(1882\,\%\) \\
+    \(\mathrm{CPR}=704\) & \(0.112\) & \(-0.12\,\%\) & \(0.00\,\%\)  & \(0.0009\) & \(9.1\,\%\) \\
+    exact                & --        & \(0.00\,\%\)  & \(0.00\,\%\)  & \(1.4\times10^{-5}\) & \(0.13\,\%\) \\
+    \midrule
+    \multicolumn{6}{l}{Sampling time at \(\mathrm{CPR}=44\)} \\
+    \(T=\SI{80}{ms}\) & \(1.785\)  & \(-25.6\,\%\)  & \(-0.06\,\%\)  & \(0.194\) & \(1882\,\%\) \\
+    \(T=\SI{20}{ms}\) & \(7.140\)  & \(-49.8\,\%\)  & \(-0.97\,\%\)  & \(0.462\) & \(934\,\%\) \\
+    \(T=\SI{5}{ms}\)  & \(28.560\) & \(-43.5\,\%\)  & \(-11.2\,\%\)  & \(0.382\) & \(129\,\%\) \\
+    \(T=\SI{2}{ms}\)  & \(71.400\) & \(-100.0\,\%\) & \(-100.0\,\%\) & \(0.135\) & \(-100\,\%\) \\
+    \bottomrule
+  \end{tabular}
+\end{scripttable}
+
+Table~\ref{tab:second-order-identifiability-study} uses open-loop, full-order
+PRBS data precisely to remove closed-loop bias and poor excitation as
+explanations, leaving the sensor. The \(a_0\) column is an absolute error
+because the true value at \(T=\SI{80}{ms}\) is numerically zero, so a relative
+error would be meaningless. Quantisation also corrupts the regressors
+\(y(k-1)\) and \(y(k-2)\) in \eqref{eq:second-order-regressor}, an
+errors-in-variables problem that biases the estimate rather than merely adding
+variance. This is why the hardware estimates settle on wrong
+values instead of scattering about the right ones.
+
+At \(T=\SI{2}{ms}\), \(\mathrm{CPR}=44\) gives only about \(1.3\) encoder
+counts per sample at a moderate \(\SI{90}{rad/s}\), and \(10.9\) counts per
+sample at the measured full-duty \(\SI{780}{rad/s}\), so the speed signal
+degenerates towards a one-bit signal. This is pure arithmetic from two
+measured constants and holds regardless of the motor model.
+
+The mechanical pair is robust: \(b_1\) is still recovered to
+\(\SI{0.06}{\percent}\) at \(\mathrm{CPR}=44\) and \(T=\SI{80}{ms}\). That is
+why the first-order design of Example 7.6 runs on this hardware and the
+second-order extension does not. The controller only needs the
+well-determined combinations of the parameters, not their individual values,
+so the closed loop stays stable. A stable closed loop is therefore not evidence of successful identification.

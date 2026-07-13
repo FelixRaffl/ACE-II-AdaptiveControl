@@ -40,6 +40,12 @@ thetaHat = mean(thetaHatSeries, 1).';
 thetaErr = abs(thetaHat - thetaTrue);
 thetaTol = 0.05 * max(abs(thetaTrue), 0.05);
 closedLoopDcGain = closedLoopT1(p.a1, p.a0, p.b1, p.b0, p.q0, p.q1, p.q2, p.q3);
+purePolePlacementErrorPct = computePurePolePlacementErrorPct(p.a1, p.a0, p.b1, p.b0, ...
+    p.q0, p.q1, p.q2, p.q3);
+qCounterExample = poly([0.9608 0.9608 0.9608 0.9608]);
+counterExampleControllerPole = forcedIntegratorControllerPoleAbs(p.a1, p.a0, ...
+    p.b1, p.b0, qCounterExample(5), qCounterExample(4), ...
+    qCounterExample(3), qCounterExample(2));
 
 trackingWindows = [5.0 5.5; 6.5 7.0; 7.5 8.0];
 nTrackingWindows = size(trackingWindows, 1);
@@ -73,6 +79,12 @@ fprintf('Actuator range observed: [%8.4f, %8.4f] V\n', min(u), max(u));
 fprintf('trace(P) max over run:   %.6g\n', max(trP));
 fprintf('Max normalized parameter error, t=3..4 s: %.6g\n', max(thetaErr ./ thetaTol));
 fprintf('Closed-loop steady-state gain T(1): %.10g\n', closedLoopDcGain);
+fprintf('Pure pole placement steady-state error: %.3f %%\n', ...
+    purePolePlacementErrorPct);
+fprintf('Counter-example controller pole magnitude: %.3f\n', ...
+    counterExampleControllerPole);
+fprintf(['Counter-example controller is itself unstable; the working design ' ...
+    'therefore leaves the fast electrical pole in place.\n']);
 for k = 1:nTrackingWindows
     fprintf(['Tracking window %.1f..%.1f s, setpoint %.1f rad/s: ' ...
         'bias %.4f rad/s (%.3f %%), RMS %.4f rad/s (%.3f %%)\n'], ...
@@ -94,6 +106,12 @@ assert(max(abs(u)) <= p.uMax + 1e-9, 'Actuator saturation was violated.');
 assert(max(trP) < 500, 'trace(P) unbounded (%.3g) - covariance windup.', max(trP));
 assert(all(thetaErr < thetaTol), ...
     'Parameter convergence failed: max normalized error %.3g.', max(thetaErr ./ thetaTol));
+assert(abs(purePolePlacementErrorPct - 17.15) <= 0.5, ...
+    'Pure pole-placement steady-state error %.3f %% does not match report.', ...
+    purePolePlacementErrorPct);
+assert(abs(counterExampleControllerPole - 2.657) <= 0.05, ...
+    'Counter-example controller pole %.3f does not match report.', ...
+    counterExampleControllerPole);
 assert(all(trackingBias <= 0.02 * abs(trackingSetpoint)), ...
     'Settled phase-2 tracking bias too large: max %.3f %% of setpoint.', max(trackingBiasPct));
 
@@ -116,6 +134,37 @@ function gain = closedLoopT1(a1, a0, b1, b0, q0, q1, q2, q3)
     d1 = sol(3);
     d0 = sol(4);
     gain = (b1 + b0) * (d2 + d1 + d0) / (1.0 + q3 + q2 + q1 + q0);
+end
+
+function errorPct = computePurePolePlacementErrorPct(a1, a0, b1, b0, q0, q1, q2, q3)
+    M = [1.0, 0.0, 0.0, 0.0;
+         a1,  1.0, b1,  0.0;
+         a0,  a1,  b0,  b1;
+         0.0, a0,  0.0, b0];
+    rhs = [q3 - a1; q2 - a0; q1; q0];
+    if rcond(M) < 1e-8
+        errorPct = NaN;
+        return;
+    end
+    sol = M \ rhs;
+    d1 = sol(3);
+    d0 = sol(4);
+    gain = (b1 + b0) * (d1 + d0) / (1.0 + q3 + q2 + q1 + q0);
+    errorPct = 100 * (1.0 - gain);
+end
+
+function poleAbs = forcedIntegratorControllerPoleAbs(a1, a0, b1, b0, q0, q1, q2, q3)
+    M = [1.0,     b1, 0.0, 0.0;
+         a1-1.0,  b0, b1,  0.0;
+         a0-a1,  0.0, b0,  b1;
+        -a0,     0.0, 0.0, b0];
+    rhs = [q3 - a1 + 1.0; q2 - a0 + a1; q1 + a0; q0];
+    if rcond(M) < 1e-8
+        poleAbs = NaN;
+        return;
+    end
+    sol = M \ rhs;
+    poleAbs = abs(sol(1));
 end
 
 function [t, x] = getSignal(ds, name)

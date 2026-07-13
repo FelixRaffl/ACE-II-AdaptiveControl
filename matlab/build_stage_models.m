@@ -12,7 +12,7 @@
 % self-contained (and literals stay tunable in External Mode).
 %
 % The ESP32 board / XCP External-Mode configuration is copied from
-% pwm_test.slx in the repository root. That donor model is loaded read-only
+% pwm_test.slx in simulink/. That donor model is loaded read-only
 % and is never saved.
 %
 % Usage:
@@ -30,7 +30,7 @@ p = stageParams();
 
 load_system('arduinolib');
 load_system('arduinosensorlib');
-load_system('pwm_test');                      % read-only config donor
+load_system(fullfile(repoRoot, 'simulink', 'pwm_test.slx')); % read-only config donor
 
 buildEncoderTest(p, outDir);
 buildSimModel(p, outDir);
