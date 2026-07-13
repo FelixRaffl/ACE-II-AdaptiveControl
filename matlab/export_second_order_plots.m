@@ -45,50 +45,53 @@ relErr = max(abs(bsxfun(@rdivide, bsxfun(@minus, thetaEst, thetaTrue.'), ...
 relErrPlot = relErr;
 relErrPlot(relErrPlot < 1e-8) = 1e-8;
 
-fig = figure('Visible', 'off', 'Position', [0 0 1300 1150]);
-tl = tiledlayout(fig, 4, 1, 'TileSpacing', 'compact');
+fig = figure('Visible', 'off', 'Position', [0 0 1600 950]);
+tl = tiledlayout(fig, 2, 2, 'TileSpacing', 'compact');
 title(tl, {'Second-order adaptive DC-motor simulation', ...
     '4-parameter RLS + RST pole placement, T = 2 ms'});
+co = get(groot, 'defaultAxesColorOrder');
 
 nexttile; hold on; grid on;
-stairs(t, ref, 'k--', 'LineWidth', 1.0);
-plot(t, y, 'k-', 'LineWidth', 1.1);
+stairs(t, ref, '--', 'Color', co(1, :), 'LineWidth', 1.0);
+plot(t, y, '-', 'Color', co(2, :), 'LineWidth', 1.1);
+xlabel('time [s]');
 ylabel('speed [rad/s]');
 legend('reference', 'output', 'Location', 'best');
 title('Reference tracking');
 
 nexttile; hold on; grid on;
-stairs(t, u, 'k-', 'LineWidth', 1.0);
+stairs(t, u, '-', 'Color', co(1, :), 'LineWidth', 1.0);
 yline(p.uMax, 'k--', '+u_{max}');
 yline(-p.uMax, 'k--', '-u_{max}');
+xlabel('time [s]');
 ylabel('u [V]');
 title('Saturated control signal');
 
 nexttile; hold on; grid on;
-plot(t, a1, 'k-', 'LineWidth', 1.0);
-plot(t, a0, '-', 'Color', [0.25 0.25 0.25], 'LineWidth', 1.0);
-plot(t, b1, '-', 'Color', [0.50 0.50 0.50], 'LineWidth', 1.0);
-plot(t, b0, '-', 'Color', [0.70 0.70 0.70], 'LineWidth', 1.0);
-yline(thetaTrue(1), '-.', 'Color', [0.00 0.00 0.00], 'LineWidth', 0.9);
-yline(thetaTrue(2), '-.', 'Color', [0.25 0.25 0.25], 'LineWidth', 0.9);
-yline(thetaTrue(3), '-.', 'Color', [0.50 0.50 0.50], 'LineWidth', 0.9);
-yline(thetaTrue(4), '-.', 'Color', [0.70 0.70 0.70], 'LineWidth', 0.9);
+plot(t, a1, '-', 'Color', co(1, :), 'LineWidth', 1.0);
+plot(t, a0, '-', 'Color', co(2, :), 'LineWidth', 1.0);
+plot(t, b1, '-', 'Color', co(3, :), 'LineWidth', 1.0);
+plot(t, b0, '-', 'Color', co(4, :), 'LineWidth', 1.0);
+yline(thetaTrue(1), '-.', 'Color', co(1, :), 'LineWidth', 0.9);
+yline(thetaTrue(2), '-.', 'Color', co(2, :), 'LineWidth', 0.9);
+yline(thetaTrue(3), '-.', 'Color', co(3, :), 'LineWidth', 0.9);
+yline(thetaTrue(4), '-.', 'Color', co(4, :), 'LineWidth', 0.9);
 xlim([0 1]);
 xlabel('time [s]');
 ylabel('estimate');
-legend('a_1 estimate', 'a_0 estimate', 'b_1 estimate', 'b_0 estimate', ...
-    'a_1 true', 'a_0 true', 'b_1 true', 'b_0 true', 'Location', 'eastoutside');
-title('Parameter estimates and true values');
+legend('a_1 est', 'a_0 est', 'b_1 est', 'b_0 est', ...
+    'a_1 true', 'a_0 true', 'b_1 true', 'b_0 true', 'Location', 'best');
+title('Parameter estimates and true values (first second)');
 
 errAx = nexttile; hold(errAx, 'on'); grid(errAx, 'on');
-semilogy(errAx, t, relErrPlot, 'k-', 'LineWidth', 1.1);
+semilogy(errAx, t, relErrPlot, '-', 'Color', co(1, :), 'LineWidth', 1.1);
 set(errAx, 'YScale', 'log');
 ylim(errAx, [1e-8, max(1e-7, max(relErrPlot))]);
 xlabel(errAx, 'time [s]');
 ylabel(errAx, 'max relative error');
 title(errAx, 'Normalized parameter estimation error');
 
-exportgraphics(fig, fullfile(imageDir, 'simulation_2nd_order.png'), 'Resolution', 150);
+exportgraphics(fig, fullfile(imageDir, 'simulation_2nd_order.png'), 'Resolution', 200);
 close(fig);
 
 disp('PLOTS_OK');
