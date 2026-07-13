@@ -1,4 +1,4 @@
-\section{First-order design}
+\section{First-order design}\label{sec:first-order}
 
 This mirrors the derivation of Example 7.6 of the reader. The first-order
 armature-to-speed relation is
@@ -86,8 +86,15 @@ where \(e(k)=r(k)-y(k)\). The saturated command, not the unsaturated internal
 value, is fed back as \(u(k-1)\) in \eqref{eq:incremental-pi}; this is the
 anti-windup mechanism used in the implementation.
 
-The transient cannot be shaped by the pole locations alone, because the
-closed-loop transfer function contains the controller zero
+Writing the plant as \(G(z)=b(z)/a(z)\) and the controller as
+\(G_C(z)=d(z)/c(z)\), the closed-loop transfer function is
+\begin{equation}
+  T(z)=\frac{b(z)d(z)}{q(z)} ,
+  \label{eq:closed-loop-transfer}
+\end{equation}
+which is the form used throughout this report. The transient cannot be shaped
+by the pole locations alone, because the numerator of
+\eqref{eq:closed-loop-transfer} contains the controller zero
 \begin{equation}
   z_0=-\frac{d_0}{d_1}.
   \label{eq:controller-zero}

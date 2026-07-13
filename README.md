@@ -35,8 +35,13 @@ Use a common ground between ESP32, L298N, motor supply, and encoder. See [img/wi
 | Software | Required version or package |
 |---|---|
 | MATLAB / Simulink | R2025b |
+| Model discretisation | Control System Toolbox (`c2d`, `tf`, `tfdata`) |
 | Code generation | Simulink Coder and Embedded Coder |
 | ESP32 target support | Simulink Support Package for Arduino/ESP32 Hardware |
+
+The Control System Toolbox is required by `second_order_params.m` and therefore
+by every second-order script. The ESP32 support package is required by
+`build_stage_models` and `validate_stage_models` even with no board attached.
 
 ## Build the models
 
@@ -62,6 +67,9 @@ build_second_order_model
 validate_second_order
 % expected: VALIDATION_OK
 
+export_second_order_plots
+% expected: PLOTS_OK, writes img/simulation_2nd_order.png
+
 identifiability_study
 % expected: STUDY_OK
 ```
@@ -80,6 +88,7 @@ matlab -batch "build_stage_models"       # expected: BUILD_OK
 matlab -batch "validate_stage_models"    # expected: VALIDATION_OK
 matlab -batch "build_second_order_model" # expected: BUILD_OK
 matlab -batch "validate_second_order"    # expected: VALIDATION_OK
+matlab -batch "export_second_order_plots" # expected: PLOTS_OK
 matlab -batch "identifiability_study"    # expected: STUDY_OK
 ```
 

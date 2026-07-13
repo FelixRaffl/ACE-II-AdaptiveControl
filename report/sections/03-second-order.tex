@@ -67,9 +67,13 @@ the design forces
   c(z)=(z-1)(z+c_0),
   \label{eq:second-order-integrator}
 \end{equation}
-which gives \(T(1)=1\). Equation 7.16 of the reader gives the design equation
-whose linear system is solved for the controller coefficients at every
-sampling instant.
+which gives \(T(1)=1\). The controller coefficients follow from the Diophantine
+identity \(a(z)c(z)+b(z)d(z)=q(z)\) that underlies Equation 7.16 of the reader.
+The degree assignment is not the one of Equation 7.16, which pairs a controller
+of order \(n-1\) with a closed loop of order \(2n-1\): forcing the integrator
+factor into \(c(z)\) raises both degrees by one, so \(c(z)\) and \(d(z)\) are of
+order \(n\) and \(q(z)\) is of order \(2n\). The resulting linear system is
+solved for the controller coefficients at every sampling instant.
 
 The desired closed-loop polynomial is
 \begin{equation}

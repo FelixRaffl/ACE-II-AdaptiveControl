@@ -1,5 +1,45 @@
 \section{Simulation results}
 
+\subsection{Adaptation to a change of the plant}
+
+A self-tuning regulator is only worth its cost if it holds the closed-loop poles
+when the plant itself changes. This is simulated in
+\texttt{simulink/adaptive\_dcmotor\_sim.slx}, which runs the first-order design
+of Section~\ref{sec:first-order} at \(T=\SI{80}{ms}\) with \(\alpha=0.98\) and
+the command clamped to \(u\in[-255,255]\). The inertia of the plant is raised by
+a factor of \(24\) at \(t=\SI{32}{s}\) and restored at \(t=\SI{64}{s}\). That
+factor is the ratio of the two flywheel discs. The discs are not fitted to the
+rig, so the inertia change is a simulation result and is not claimed as a
+measurement.
+
+Figure~\ref{fig:first-order-inertia} shows the run. The estimate of the input
+gain follows both steps: \(b_0\) falls when the inertia is raised, because
+\(b_0=(K_m/b)(1-\exp(-bT/J))\) shrinks as \(J\) grows, and it recovers when the
+inertia is restored. The covariance trace holds at its initial value of \(200\)
+while the motor is idle and collapses only once excitation begins, so the
+excitation gate does what it was built for: it prevents the windup that
+\(\alpha<1\) would otherwise produce in the absence of persistent excitation.
+
+The run also shows where the design ends. With the inertia raised by \(24\) the
+actuator saturates, the command sits at \(\pm 255\), and the speed can no longer
+follow the square-wave reference; it ramps between the levels instead of
+stepping. At the downward transition the loop is briefly driven by controller
+coefficients that still belong to the heavy plant, which produces an oscillation
+burst that decays within a few seconds as the estimator reconverges. The limit
+is set by the actuator, not by the estimator: no choice of controller
+coefficients lets a saturated actuator accelerate a load \(24\) times heavier.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{../img/simulation_stage3.png}
+  \caption{First-order adaptive loop against a plant whose inertia is raised by
+  a factor of \(24\) at \(t=\SI{32}{s}\) and restored at \(t=\SI{64}{s}\).
+  Simulation only; the flywheels are not fitted to the rig.}
+  \label{fig:first-order-inertia}
+\end{figure}
+
+\subsection{Second-order identification}
+
 The validation run uses the second-order design with \(T=\SI{2}{ms}\).
 Its speed signal is exact and unquantised; the identifiability study in
 Section~\ref{sec:identifiability},
